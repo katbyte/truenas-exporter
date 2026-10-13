@@ -1,0 +1,196 @@
+[
+  {
+    "id": 5,
+    "description": "description-3",
+    "path": "/mnt/tank/dataset-6/dataset-19",
+    "schedule": {
+      "minute": "0",
+      "hour": "1",
+      "dom": "*",
+      "month": "*",
+      "dow": "mon"
+    },
+    "pre_script": "",
+    "post_script": "",
+    "snapshot": false,
+    "enabled": true,
+    "job": {
+      "id": 29241,
+      "method": "cloudsync.sync",
+      "transient": false,
+      "description": null,
+      "abortable": true,
+      "progress": {
+        "percent": 87,
+        "description": "description-4"
+      },
+      "result": null,
+      "result_encoding_error": null,
+      "error": null,
+      "exception": null,
+      "exc_info": null,
+      "state": "RUNNING",
+      "time_started": {
+        "$date": 1791792002000
+      },
+      "time_finished": null
+    },
+    "locked": false,
+    "transfers": 16,
+    "direction": "PUSH",
+    "transfer_mode": "SYNC",
+    "encryption": true,
+    "filename_encryption": false,
+    "encryption_password": "encryption_password-1",
+    "encryption_salt": "",
+    "create_empty_src_dirs": true,
+    "follow_symlinks": true
+  },
+  {
+    "id": 10,
+    "description": "description-5",
+    "path": "/mnt/tank/dataset-7/dataset-13/dataset-19",
+    "schedule": {
+      "minute": "0",
+      "hour": "2",
+      "dom": "*",
+      "month": "*",
+      "dow": "mon"
+    },
+    "pre_script": "",
+    "post_script": "",
+    "snapshot": false,
+    "enabled": false,
+    "job": {
+      "id": null,
+      "method": "cloudsync.sync",
+      "transient": false,
+      "description": null,
+      "abortable": true,
+      "progress": {
+        "percent": 100,
+        "description": "description-6"
+      },
+      "result": null,
+      "result_encoding_error": null,
+      "error": null,
+      "exception": null,
+      "exc_info": null,
+      "state": "SUCCESS",
+      "time_started": {
+        "$date": 1790036466000
+      },
+      "time_finished": {
+        "$date": 1790067633000
+      }
+    },
+    "locked": false,
+    "transfers": 16,
+    "direction": "PUSH",
+    "transfer_mode": "SYNC",
+    "encryption": false,
+    "filename_encryption": false,
+    "encryption_password": "",
+    "encryption_salt": "",
+    "create_empty_src_dirs": true,
+    "follow_symlinks": true
+  },
+  {
+    "id": 1,
+    "description": "description-7",
+    "path": "/mnt/tank/dataset-2/dataset-19",
+    "schedule": {
+      "minute": "0",
+      "hour": "23",
+      "dom": "*",
+      "month": "*",
+      "dow": "sun"
+    },
+    "pre_script": "",
+    "post_script": "",
+    "snapshot": false,
+    "enabled": true,
+    "job": {
+      "id": 28990,
+      "method": "cloudsync.sync",
+      "transient": false,
+      "description": null,
+      "abortable": true,
+      "progress": {
+        "percent": 100,
+        "description": "description-8"
+      },
+      "result": null,
+      "result_encoding_error": null,
+      "error": null,
+      "exception": null,
+      "exc_info": null,
+      "state": "SUCCESS",
+      "time_started": {
+        "$date": 1791784801000
+      },
+      "time_finished": {
+        "$date": 1791786287000
+      }
+    },
+    "locked": false,
+    "transfers": 16,
+    "direction": "PUSH",
+    "transfer_mode": "SYNC",
+    "encryption": false,
+    "filename_encryption": false,
+    "encryption_password": "",
+    "encryption_salt": "",
+    "create_empty_src_dirs": true,
+    "follow_symlinks": true
+  },
+  {
+    "id": 2,
+    "description": "description-9",
+    "path": "/mnt/tank/dataset-5",
+    "schedule": {
+      "minute": "30",
+      "hour": "23",
+      "dom": "*",
+      "month": "*",
+      "dow": "sun"
+    },
+    "pre_script": "",
+    "post_script": "",
+    "snapshot": false,
+    "enabled": true,
+    "job": {
+      "id": 29053,
+      "method": "cloudsync.sync",
+      "transient": false,
+      "description": null,
+      "abortable": true,
+      "progress": {
+        "percent": 100,
+        "description": "description-10"
+      },
+      "result": null,
+      "result_encoding_error": null,
+      "error": null,
+      "exception": null,
+      "exc_info": null,
+      "state": "SUCCESS",
+      "time_started": {
+        "$date": 1791786601000
+      },
+      "time_finished": {
+        "$date": 1791788569000
+      }
+    },
+    "locked": false,
+    "transfers": 16,
+    "direction": "PUSH",
+    "transfer_mode": "SYNC",
+    "encryption": false,
+    "filename_encryption": false,
+    "encryption_password": "",
+    "encryption_salt": "",
+    "create_empty_src_dirs": true,
+    "follow_symlinks": true
+  }
+]

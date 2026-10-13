@@ -1,0 +1,222 @@
+[
+  {
+    "id": 13,
+    "path": "/mnt/tank/dataset-9/dataset-19",
+    "user": "user-1",
+    "mode": "SSH",
+    "remotehost": null,
+    "remoteport": null,
+    "remotemodule": null,
+    "remotepath": "remotepath-1",
+    "direction": "PUSH",
+    "desc": "desc-1",
+    "schedule": {
+      "minute": "0",
+      "hour": "0",
+      "dom": "*",
+      "month": "*",
+      "dow": "0"
+    },
+    "recursive": true,
+    "times": true,
+    "compress": true,
+    "archive": false,
+    "delete": true,
+    "quiet": false,
+    "preserveperm": true,
+    "preserveattr": false,
+    "delayupdates": false,
+    "enabled": false,
+    "locked": false,
+    "job": {
+      "id": null,
+      "method": "rsynctask.run",
+      "transient": false,
+      "description": null,
+      "abortable": false,
+      "progress": {
+        "percent": 0,
+        "description": ""
+      },
+      "result": null,
+      "result_encoding_error": null,
+      "error": "error-1",
+      "exception": "exception-1",
+      "exc_info": {
+        "repr": "repr-1",
+        "type": "CallError",
+        "errno": 14
+      },
+      "state": "FAILED",
+      "time_started": {
+        "$date": 1768363423000
+      },
+      "time_finished": {
+        "$date": 1768363442000
+      }
+    }
+  },
+  {
+    "id": 15,
+    "path": "/mnt/tank/dataset-1/dataset-19",
+    "user": "user-1",
+    "mode": "SSH",
+    "remotehost": null,
+    "remoteport": null,
+    "remotemodule": null,
+    "remotepath": "/mnt/tank/dataset-1/dataset-19",
+    "direction": "PUSH",
+    "desc": "desc-2",
+    "schedule": {
+      "minute": "0",
+      "hour": "0",
+      "dom": "*",
+      "month": "*",
+      "dow": "sun"
+    },
+    "recursive": true,
+    "times": true,
+    "compress": true,
+    "archive": false,
+    "delete": true,
+    "quiet": false,
+    "preserveperm": true,
+    "preserveattr": false,
+    "delayupdates": true,
+    "enabled": false,
+    "locked": false,
+    "job": {
+      "id": null,
+      "method": "rsynctask.run",
+      "transient": false,
+      "description": null,
+      "abortable": false,
+      "progress": {
+        "percent": 0,
+        "description": ""
+      },
+      "result": null,
+      "result_encoding_error": null,
+      "error": "error-2",
+      "exception": "exception-2",
+      "exc_info": {
+        "repr": "repr-2",
+        "type": "CallError",
+        "errno": 14
+      },
+      "state": "FAILED",
+      "time_started": {
+        "$date": 1790492402000
+      },
+      "time_finished": {
+        "$date": 1790654464000
+      }
+    }
+  },
+  {
+    "id": 1,
+    "path": "/mnt/tank/dataset-8/dataset-19",
+    "user": "user-1",
+    "mode": "SSH",
+    "remotehost": null,
+    "remoteport": null,
+    "remotemodule": null,
+    "remotepath": "/mnt/tank/dataset-8/dataset-19",
+    "direction": "PUSH",
+    "desc": "desc-3",
+    "schedule": {
+      "minute": "0",
+      "hour": "0",
+      "dom": "*",
+      "month": "*",
+      "dow": "0"
+    },
+    "recursive": true,
+    "times": true,
+    "compress": true,
+    "archive": false,
+    "delete": true,
+    "quiet": false,
+    "preserveperm": true,
+    "preserveattr": false,
+    "delayupdates": false,
+    "enabled": true,
+    "locked": false,
+    "job": {
+      "id": 26112,
+      "method": "rsynctask.run",
+      "transient": false,
+      "description": null,
+      "abortable": false,
+      "progress": {
+        "percent": 100,
+        "description": ""
+      },
+      "result": null,
+      "result_encoding_error": null,
+      "error": null,
+      "exception": null,
+      "exc_info": null,
+      "state": "SUCCESS",
+      "time_started": {
+        "$date": 1791702001000
+      },
+      "time_finished": {
+        "$date": 1791702004000
+      }
+    }
+  },
+  {
+    "id": 2,
+    "path": "/mnt/tank/dataset-2/dataset-19",
+    "user": "user-1",
+    "mode": "SSH",
+    "remotehost": null,
+    "remoteport": null,
+    "remotemodule": null,
+    "remotepath": "/mnt/tank/dataset-2/dataset-19",
+    "direction": "PUSH",
+    "desc": "description-7",
+    "schedule": {
+      "minute": "15",
+      "hour": "0",
+      "dom": "*",
+      "month": "*",
+      "dow": "sun"
+    },
+    "recursive": true,
+    "times": true,
+    "compress": true,
+    "archive": false,
+    "delete": true,
+    "quiet": false,
+    "preserveperm": true,
+    "preserveattr": false,
+    "delayupdates": false,
+    "enabled": true,
+    "locked": false,
+    "job": {
+      "id": 26148,
+      "method": "rsynctask.run",
+      "transient": false,
+      "description": null,
+      "abortable": false,
+      "progress": {
+        "percent": 100,
+        "description": ""
+      },
+      "result": null,
+      "result_encoding_error": null,
+      "error": null,
+      "exception": null,
+      "exc_info": null,
+      "state": "SUCCESS",
+      "time_started": {
+        "$date": 1791702901000
+      },
+      "time_finished": {
+        "$date": 1791702936000
+      }
+    }
+  }
+]

@@ -1,0 +1,43 @@
+[
+  {
+    "id": "enp1s0",
+    "name": "enp1s0",
+    "fake": false,
+    "type": "PHYSICAL",
+    "state": {
+      "name": "enp1s0",
+      "orig_name": "enp1s0",
+      "description": "enp1s0",
+      "mtu": 9000,
+      "cloned": false,
+      "flags": [
+        "UP",
+        "BROADCAST",
+        "RUNNING",
+        "MULTICAST",
+        "LOWER_UP"
+      ],
+      "nd6_flags": [],
+      "capabilities": [],
+      "link_state": "LINK_STATE_UP",
+      "media_type": "Ethernet",
+      "media_subtype": "Unknown Other",
+      "active_media_type": "Ethernet",
+      "active_media_subtype": "Unknown Other",
+      "media_options": null,
+      "link_address": "link_address-1",
+      "permanent_link_address": "link_address-1",
+      "hardware_link_address": "link_address-1",
+      "rx_queues": 8,
+      "tx_queues": 8,
+      "vrrp_config": null,
+      "ports": [],
+      "xmit_hash_policy": null,
+      "lacpdu_rate": null
+    },
+    "ipv4_dhcp": false,
+    "ipv6_auto": false,
+    "description": "",
+    "mtu": 9000
+  }
+]

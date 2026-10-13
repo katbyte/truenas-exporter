@@ -1,0 +1,470 @@
+# HELP truenas_alerts Alerts the NAS is showing that nobody has dismissed, by level.
+# TYPE truenas_alerts gauge
+truenas_alerts{level="ALERT"} 0
+truenas_alerts{level="CRITICAL"} 3
+truenas_alerts{level="EMERGENCY"} 0
+truenas_alerts{level="ERROR"} 0
+truenas_alerts{level="INFO"} 1
+truenas_alerts{level="NOTICE"} 0
+truenas_alerts{level="WARNING"} 0
+# HELP truenas_alerts_by_class Alerts the NAS is showing that nobody has dismissed, by level and kind. A kind is here only while there is such an alert.
+# TYPE truenas_alerts_by_class gauge
+truenas_alerts_by_class{class="RsyncFailed",level="CRITICAL"} 2
+truenas_alerts_by_class{class="RsyncSuccess",level="INFO"} 1
+truenas_alerts_by_class{class="VolumeStatus",level="CRITICAL"} 1
+# HELP truenas_alerts_dismissed Alerts somebody has dismissed that the NAS still holds.
+# TYPE truenas_alerts_dismissed gauge
+truenas_alerts_dismissed 1
+# HELP truenas_api_key_expiry_timestamp_seconds When the API key truenas-metrics uses stops working, in seconds since 1970. Only for a key that expires.
+# TYPE truenas_api_key_expiry_timestamp_seconds gauge
+truenas_api_key_expiry_timestamp_seconds 9.492768e+08
+# HELP truenas_app_state Always 1, with the state of each installed app.
+# TYPE truenas_app_state gauge
+truenas_app_state{app="plex",state="RUNNING"} 1
+truenas_app_state{app="syncthing",state="STOPPED"} 1
+# HELP truenas_app_update_available Whether there is a newer version of each installed app (1) or not (0).
+# TYPE truenas_app_update_available gauge
+truenas_app_update_available{app="plex"} 1
+truenas_app_update_available{app="syncthing"} 0
+# HELP truenas_apps Installed apps, by state.
+# TYPE truenas_apps gauge
+truenas_apps{state="CRASHED"} 0
+truenas_apps{state="DEPLOYING"} 0
+truenas_apps{state="RUNNING"} 1
+truenas_apps{state="STOPPED"} 1
+truenas_apps{state="STOPPING"} 0
+# HELP truenas_apps_service_status Always 1, with the state of the service that runs apps: RUNNING, STOPPED, FAILED, or UNCONFIGURED where apps were never set up.
+# TYPE truenas_apps_service_status gauge
+truenas_apps_service_status{status="RUNNING"} 1
+# HELP truenas_certificate_expiry_timestamp_seconds When each certificate the NAS holds stops being good, in seconds since 1970.
+# TYPE truenas_certificate_expiry_timestamp_seconds gauge
+truenas_certificate_expiry_timestamp_seconds{certificate="truenas_default"} 9.529056e+08
+# HELP truenas_dataset_available_bytes How much each dataset may still grow by.
+# TYPE truenas_dataset_available_bytes gauge
+truenas_dataset_available_bytes{dataset="boot-pool",pool="boot-pool"} 8.3751862272e+10
+truenas_dataset_available_bytes{dataset="tank",pool="tank"} 6.597069766656e+12
+truenas_dataset_available_bytes{dataset="tank/backups",pool="tank"} 1.099511627776e+12
+truenas_dataset_available_bytes{dataset="tank/media",pool="tank"} 6.597069766656e+12
+# HELP truenas_dataset_compression_ratio How many times smaller each dataset is stored than it is: 1.5 is a third saved.
+# TYPE truenas_dataset_compression_ratio gauge
+truenas_dataset_compression_ratio{dataset="boot-pool",pool="boot-pool"} 1.5
+truenas_dataset_compression_ratio{dataset="tank",pool="tank"} 1.04
+truenas_dataset_compression_ratio{dataset="tank/backups",pool="tank"} 1.8
+truenas_dataset_compression_ratio{dataset="tank/media",pool="tank"} 1
+# HELP truenas_dataset_quota_bytes The most each dataset may take up with everything under it. Only where a quota is set.
+# TYPE truenas_dataset_quota_bytes gauge
+truenas_dataset_quota_bytes{dataset="tank/backups",pool="tank"} 5.49755813888e+12
+# HELP truenas_dataset_refquota_bytes The most each dataset's own data may take up. Only where a quota is set.
+# TYPE truenas_dataset_refquota_bytes gauge
+truenas_dataset_refquota_bytes{dataset="tank/backups",pool="tank"} 4.398046511104e+12
+# HELP truenas_dataset_snapshots How many snapshots each dataset has of itself.
+# TYPE truenas_dataset_snapshots gauge
+truenas_dataset_snapshots{dataset="tank",pool="tank"} 0
+truenas_dataset_snapshots{dataset="tank/backups",pool="tank"} 90
+truenas_dataset_snapshots{dataset="tank/media",pool="tank"} 12
+# HELP truenas_dataset_used_by_dataset_bytes How much each dataset's own data takes up, with nothing under it counted.
+# TYPE truenas_dataset_used_by_dataset_bytes gauge
+truenas_dataset_used_by_dataset_bytes{dataset="boot-pool",pool="boot-pool"} 98304
+truenas_dataset_used_by_dataset_bytes{dataset="tank",pool="tank"} 2.147483648e+11
+truenas_dataset_used_by_dataset_bytes{dataset="tank/backups",pool="tank"} 3.298534883328e+12
+truenas_dataset_used_by_dataset_bytes{dataset="tank/media",pool="tank"} 1.073741824e+11
+# HELP truenas_dataset_used_by_snapshots_bytes How much each dataset's snapshots alone hold on to.
+# TYPE truenas_dataset_used_by_snapshots_bytes gauge
+truenas_dataset_used_by_snapshots_bytes{dataset="boot-pool",pool="boot-pool"} 0
+truenas_dataset_used_by_snapshots_bytes{dataset="tank",pool="tank"} 0
+truenas_dataset_used_by_snapshots_bytes{dataset="tank/backups",pool="tank"} 1.099511627776e+12
+truenas_dataset_used_by_snapshots_bytes{dataset="tank/media",pool="tank"} 5.36870912e+10
+# HELP truenas_dataset_used_bytes How much each dataset takes up, the datasets under it and its snapshots included.
+# TYPE truenas_dataset_used_bytes gauge
+truenas_dataset_used_bytes{dataset="boot-pool",pool="boot-pool"} 2.147483648e+10
+truenas_dataset_used_bytes{dataset="tank",pool="tank"} 2.199023255552e+13
+truenas_dataset_used_bytes{dataset="tank/backups",pool="tank"} 4.398046511104e+12
+truenas_dataset_used_bytes{dataset="tank/media",pool="tank"} 1.649267441664e+13
+# HELP truenas_datasets How many datasets each pool has, however deep.
+# TYPE truenas_datasets gauge
+truenas_datasets{pool="boot-pool"} 1
+truenas_datasets{pool="tank"} 4
+# HELP truenas_directory_service_healthy Whether the directory service the NAS is joined to is healthy (1) or not (0). Only on a NAS joined to one.
+# TYPE truenas_directory_service_healthy gauge
+truenas_directory_service_healthy{status="HEALTHY",type="ACTIVEDIRECTORY"} 1
+# HELP truenas_disk_info Always 1, with what is known of each disk. The serial number is what stays the same; the name can change when the NAS restarts.
+# TYPE truenas_disk_info gauge
+truenas_disk_info{bus="NVME",disk="nvme0n1",enclosure="",model="SAMSUNG MZQL21T9HCJR",pool="tank",serial="S6B0NA0T000001",slot="",type="SSD",wwn=""} 1
+truenas_disk_info{bus="SCSI",disk="sda",enclosure="",model="ST20000NM007D",pool="tank",serial="ZR5A0001",slot="",type="HDD",wwn="5000c500e0000001"} 1
+truenas_disk_info{bus="SCSI",disk="sdb",enclosure="0",model="ST20000NM007D",pool="tank",serial="ZR5A0002",slot="2",type="HDD",wwn="5000c500e0000002"} 1
+truenas_disk_info{bus="SCSI",disk="sdc",enclosure="",model="ST20000NM007D",pool="tank",serial="ZR5A0003",slot="",type="HDD",wwn="5000c500e0000003"} 1
+truenas_disk_info{bus="SCSI",disk="sdd",enclosure="",model="ST20000NM007D",pool="tank",serial="ZR5A0004",slot="",type="HDD",wwn="5000c500e0000004"} 1
+truenas_disk_info{bus="SCSI",disk="sde",enclosure="",model="ST20000NM007D",pool="tank",serial="ZR5A0005",slot="",type="HDD",wwn="5000c500e0000005"} 1
+truenas_disk_info{bus="SCSI",disk="sdh",enclosure="",model="ST20000NM007D",pool="",serial="ZR5A0008",slot="",type="HDD",wwn="5000c500e0000008"} 1
+# HELP truenas_disk_size_bytes The size of each disk.
+# TYPE truenas_disk_size_bytes gauge
+truenas_disk_size_bytes{disk="nvme0n1",serial="S6B0NA0T000001"} 1.099511627776e+12
+truenas_disk_size_bytes{disk="sda",serial="ZR5A0001"} 2.199023255552e+13
+truenas_disk_size_bytes{disk="sdb",serial="ZR5A0002"} 2.199023255552e+13
+truenas_disk_size_bytes{disk="sdc",serial="ZR5A0003"} 2.199023255552e+13
+truenas_disk_size_bytes{disk="sdd",serial="ZR5A0004"} 2.199023255552e+13
+truenas_disk_size_bytes{disk="sde",serial="ZR5A0005"} 2.199023255552e+13
+truenas_disk_size_bytes{disk="sdh",serial="ZR5A0008"} 2.199023255552e+13
+# HELP truenas_disk_temperature_celsius The temperature of each disk that gives one.
+# TYPE truenas_disk_temperature_celsius gauge
+truenas_disk_temperature_celsius{disk="nvme0n1",serial="S6B0NA0T000001"} 41
+truenas_disk_temperature_celsius{disk="sda",serial="ZR5A0001"} 34
+truenas_disk_temperature_celsius{disk="sdb",serial="ZR5A0002"} 35
+truenas_disk_temperature_celsius{disk="sdc",serial="ZR5A0003"} 33
+truenas_disk_temperature_celsius{disk="sde",serial="ZR5A0005"} 29
+truenas_disk_temperature_celsius{disk="sdh",serial="ZR5A0008"} 30
+# HELP truenas_interface_link_up Whether each network interface has a link (1) or not (0).
+# TYPE truenas_interface_link_up gauge
+truenas_interface_link_up{interface="eno1",type="PHYSICAL"} 1
+truenas_interface_link_up{interface="eno2",type="PHYSICAL"} 0
+# HELP truenas_interface_mtu_bytes The largest packet each network interface sends.
+# TYPE truenas_interface_mtu_bytes gauge
+truenas_interface_mtu_bytes{interface="eno1"} 9000
+truenas_interface_mtu_bytes{interface="eno2"} 1500
+# HELP truenas_jobs Jobs on the NAS that are not over, by state: RUNNING or WAITING.
+# TYPE truenas_jobs gauge
+truenas_jobs{state="RUNNING"} 2
+truenas_jobs{state="WAITING"} 1
+# HELP truenas_jobs_running Jobs running on the NAS, by what they do. A kind is here only while one runs.
+# TYPE truenas_jobs_running gauge
+truenas_jobs_running{method="cloudsync.sync"} 1
+truenas_jobs_running{method="pool.scrub.run"} 1
+# HELP truenas_metrics_build_info Always 1, with the version of the tool that wrote the page.
+# TYPE truenas_metrics_build_info gauge
+truenas_metrics_build_info{commit="",goversion="go",version="dev"} 1
+# HELP truenas_poll_duration_seconds How long the last poll of the NAS took, by which: fast or slow.
+# TYPE truenas_poll_duration_seconds gauge
+truenas_poll_duration_seconds{poll="fast"} 0.25
+truenas_poll_duration_seconds{poll="slow"} 3
+# HELP truenas_poll_failures_total How many polls of the NAS have failed since truenas-metrics started.
+# TYPE truenas_poll_failures_total counter
+truenas_poll_failures_total{poll="fast"} 0
+truenas_poll_failures_total{poll="slow"} 2
+# HELP truenas_poll_last_success_timestamp_seconds When a poll of the NAS was last answered in full, in seconds since 1970.
+# TYPE truenas_poll_last_success_timestamp_seconds gauge
+truenas_poll_last_success_timestamp_seconds{poll="fast"} 9.466848e+08
+truenas_poll_last_success_timestamp_seconds{poll="slow"} 9.4668474e+08
+# HELP truenas_pool_allocated_bytes How much of the pool is written to, parity and mirrors included.
+# TYPE truenas_pool_allocated_bytes gauge
+truenas_pool_allocated_bytes{pool="boot-pool"} 2.147483648e+10
+truenas_pool_allocated_bytes{pool="tank"} 3.298534883328e+13
+# HELP truenas_pool_device_checksum_errors Times each disk in a pool has given back data that was not what was written, since the count was last cleared.
+# TYPE truenas_pool_device_checksum_errors gauge
+truenas_pool_device_checksum_errors{class="cache",disk="nvme2n1",pool="tank",serial="",vdev="nvme2n1p1"} 0
+truenas_pool_device_checksum_errors{class="data",disk="sda",pool="tank",serial="ZR5A0001",vdev="raidz2-0"} 0
+truenas_pool_device_checksum_errors{class="data",disk="sdb",pool="tank",serial="ZR5A0002",vdev="raidz2-0"} 0
+truenas_pool_device_checksum_errors{class="data",disk="sdc",pool="tank",serial="ZR5A0003",vdev="raidz2-0"} 0
+truenas_pool_device_checksum_errors{class="data",disk="sdd",pool="tank",serial="ZR5A0004",vdev="raidz2-0"} 7
+truenas_pool_device_checksum_errors{class="data",disk="sdf",pool="boot-pool",serial="",vdev="mirror-0"} 0
+truenas_pool_device_checksum_errors{class="data",disk="sdg",pool="boot-pool",serial="",vdev="mirror-0"} 0
+truenas_pool_device_checksum_errors{class="spare",disk="sde",pool="tank",serial="ZR5A0005",vdev="sde1"} 0
+truenas_pool_device_checksum_errors{class="special",disk="nvme0n1",pool="tank",serial="S6B0NA0T000001",vdev="mirror-1"} 0
+truenas_pool_device_checksum_errors{class="special",disk="nvme1n1",pool="tank",serial="",vdev="mirror-1"} 0
+# HELP truenas_pool_device_read_errors Reads of each disk in a pool that have gone wrong since the count was last cleared.
+# TYPE truenas_pool_device_read_errors gauge
+truenas_pool_device_read_errors{class="cache",disk="nvme2n1",pool="tank",serial="",vdev="nvme2n1p1"} 0
+truenas_pool_device_read_errors{class="data",disk="sda",pool="tank",serial="ZR5A0001",vdev="raidz2-0"} 0
+truenas_pool_device_read_errors{class="data",disk="sdb",pool="tank",serial="ZR5A0002",vdev="raidz2-0"} 0
+truenas_pool_device_read_errors{class="data",disk="sdc",pool="tank",serial="ZR5A0003",vdev="raidz2-0"} 0
+truenas_pool_device_read_errors{class="data",disk="sdd",pool="tank",serial="ZR5A0004",vdev="raidz2-0"} 3
+truenas_pool_device_read_errors{class="data",disk="sdf",pool="boot-pool",serial="",vdev="mirror-0"} 0
+truenas_pool_device_read_errors{class="data",disk="sdg",pool="boot-pool",serial="",vdev="mirror-0"} 0
+truenas_pool_device_read_errors{class="spare",disk="sde",pool="tank",serial="ZR5A0005",vdev="sde1"} 0
+truenas_pool_device_read_errors{class="special",disk="nvme0n1",pool="tank",serial="S6B0NA0T000001",vdev="mirror-1"} 0
+truenas_pool_device_read_errors{class="special",disk="nvme1n1",pool="tank",serial="",vdev="mirror-1"} 0
+# HELP truenas_pool_device_status Always 1, with the status of each disk in a pool.
+# TYPE truenas_pool_device_status gauge
+truenas_pool_device_status{class="cache",disk="nvme2n1",pool="tank",serial="",status="ONLINE",vdev="nvme2n1p1"} 1
+truenas_pool_device_status{class="data",disk="sda",pool="tank",serial="ZR5A0001",status="ONLINE",vdev="raidz2-0"} 1
+truenas_pool_device_status{class="data",disk="sdb",pool="tank",serial="ZR5A0002",status="ONLINE",vdev="raidz2-0"} 1
+truenas_pool_device_status{class="data",disk="sdc",pool="tank",serial="ZR5A0003",status="ONLINE",vdev="raidz2-0"} 1
+truenas_pool_device_status{class="data",disk="sdd",pool="tank",serial="ZR5A0004",status="FAULTED",vdev="raidz2-0"} 1
+truenas_pool_device_status{class="data",disk="sdf",pool="boot-pool",serial="",status="ONLINE",vdev="mirror-0"} 1
+truenas_pool_device_status{class="data",disk="sdg",pool="boot-pool",serial="",status="ONLINE",vdev="mirror-0"} 1
+truenas_pool_device_status{class="spare",disk="sde",pool="tank",serial="ZR5A0005",status="ONLINE",vdev="sde1"} 1
+truenas_pool_device_status{class="special",disk="nvme0n1",pool="tank",serial="S6B0NA0T000001",status="ONLINE",vdev="mirror-1"} 1
+truenas_pool_device_status{class="special",disk="nvme1n1",pool="tank",serial="",status="ONLINE",vdev="mirror-1"} 1
+# HELP truenas_pool_device_write_errors Writes to each disk in a pool that have gone wrong since the count was last cleared.
+# TYPE truenas_pool_device_write_errors gauge
+truenas_pool_device_write_errors{class="cache",disk="nvme2n1",pool="tank",serial="",vdev="nvme2n1p1"} 0
+truenas_pool_device_write_errors{class="data",disk="sda",pool="tank",serial="ZR5A0001",vdev="raidz2-0"} 0
+truenas_pool_device_write_errors{class="data",disk="sdb",pool="tank",serial="ZR5A0002",vdev="raidz2-0"} 0
+truenas_pool_device_write_errors{class="data",disk="sdc",pool="tank",serial="ZR5A0003",vdev="raidz2-0"} 0
+truenas_pool_device_write_errors{class="data",disk="sdd",pool="tank",serial="ZR5A0004",vdev="raidz2-0"} 1
+truenas_pool_device_write_errors{class="data",disk="sdf",pool="boot-pool",serial="",vdev="mirror-0"} 0
+truenas_pool_device_write_errors{class="data",disk="sdg",pool="boot-pool",serial="",vdev="mirror-0"} 0
+truenas_pool_device_write_errors{class="spare",disk="sde",pool="tank",serial="ZR5A0005",vdev="sde1"} 0
+truenas_pool_device_write_errors{class="special",disk="nvme0n1",pool="tank",serial="S6B0NA0T000001",vdev="mirror-1"} 0
+truenas_pool_device_write_errors{class="special",disk="nvme1n1",pool="tank",serial="",vdev="mirror-1"} 0
+# HELP truenas_pool_fragmentation_ratio How broken up the pool's free space is, from 0 to 1.
+# TYPE truenas_pool_fragmentation_ratio gauge
+truenas_pool_fragmentation_ratio{pool="boot-pool"} 0.49
+truenas_pool_fragmentation_ratio{pool="tank"} 0.14
+# HELP truenas_pool_free_bytes How much of the pool is not written to.
+# TYPE truenas_pool_free_bytes gauge
+truenas_pool_free_bytes{pool="boot-pool"} 8.589934592e+10
+truenas_pool_free_bytes{pool="tank"} 1.099511627776e+13
+# HELP truenas_pool_freeing_bytes How much of the pool is still to be given back after something was deleted.
+# TYPE truenas_pool_freeing_bytes gauge
+truenas_pool_freeing_bytes{pool="boot-pool"} 0
+truenas_pool_freeing_bytes{pool="tank"} 4.294967296e+09
+# HELP truenas_pool_healthy Whether the NAS calls the pool healthy (1) or not (0). The boot pool is one of them.
+# TYPE truenas_pool_healthy gauge
+truenas_pool_healthy{pool="boot-pool"} 1
+truenas_pool_healthy{pool="tank"} 0
+# HELP truenas_pool_scan_end_timestamp_seconds When the pool's last scan ended, in seconds since 1970. Left off while one runs.
+# TYPE truenas_pool_scan_end_timestamp_seconds gauge
+truenas_pool_scan_end_timestamp_seconds{function="SCRUB",pool="tank"} 9.46512e+08
+# HELP truenas_pool_scan_errors How many errors the pool's last scan found.
+# TYPE truenas_pool_scan_errors gauge
+truenas_pool_scan_errors{function="RESILVER",pool="boot-pool"} 0
+truenas_pool_scan_errors{function="SCRUB",pool="tank"} 2
+# HELP truenas_pool_scan_examined_bytes How much the pool's last scan has looked at.
+# TYPE truenas_pool_scan_examined_bytes gauge
+truenas_pool_scan_examined_bytes{function="RESILVER",pool="boot-pool"} 6.442450944e+09
+truenas_pool_scan_examined_bytes{function="SCRUB",pool="tank"} 3.298534883328e+13
+# HELP truenas_pool_scan_issued_bytes How much the pool's last scan has read and checked.
+# TYPE truenas_pool_scan_issued_bytes gauge
+truenas_pool_scan_issued_bytes{function="RESILVER",pool="boot-pool"} 5.36870912e+09
+truenas_pool_scan_issued_bytes{function="SCRUB",pool="tank"} 3.298534883328e+13
+# HELP truenas_pool_scan_paused Whether the pool's last scan is paused (1) or not (0).
+# TYPE truenas_pool_scan_paused gauge
+truenas_pool_scan_paused{function="RESILVER",pool="boot-pool"} 0
+truenas_pool_scan_paused{function="SCRUB",pool="tank"} 0
+# HELP truenas_pool_scan_progress_ratio How far the pool's last scan got, from 0 to 1.
+# TYPE truenas_pool_scan_progress_ratio gauge
+truenas_pool_scan_progress_ratio{function="RESILVER",pool="boot-pool"} 0.25
+truenas_pool_scan_progress_ratio{function="SCRUB",pool="tank"} 1
+# HELP truenas_pool_scan_remaining_seconds How long the NAS expects the pool's scan to go on. Only while one runs.
+# TYPE truenas_pool_scan_remaining_seconds gauge
+truenas_pool_scan_remaining_seconds{function="RESILVER",pool="boot-pool"} 1800
+# HELP truenas_pool_scan_running Whether a scan of the pool is under way (1) or not (0), by what it does: SCRUB or RESILVER.
+# TYPE truenas_pool_scan_running gauge
+truenas_pool_scan_running{function="RESILVER",pool="boot-pool"} 1
+truenas_pool_scan_running{function="RESILVER",pool="tank"} 0
+truenas_pool_scan_running{function="SCRUB",pool="boot-pool"} 0
+truenas_pool_scan_running{function="SCRUB",pool="tank"} 0
+# HELP truenas_pool_scan_start_timestamp_seconds When the pool's last scan started, in seconds since 1970.
+# TYPE truenas_pool_scan_start_timestamp_seconds gauge
+truenas_pool_scan_start_timestamp_seconds{function="RESILVER",pool="boot-pool"} 9.466842e+08
+truenas_pool_scan_start_timestamp_seconds{function="SCRUB",pool="tank"} 9.465048e+08
+# HELP truenas_pool_scan_to_examine_bytes How much the pool's last scan had to look at.
+# TYPE truenas_pool_scan_to_examine_bytes gauge
+truenas_pool_scan_to_examine_bytes{function="RESILVER",pool="boot-pool"} 2.147483648e+10
+truenas_pool_scan_to_examine_bytes{function="SCRUB",pool="tank"} 3.298534883328e+13
+# HELP truenas_pool_size_bytes The size of the pool, before what parity and mirrors take.
+# TYPE truenas_pool_size_bytes gauge
+truenas_pool_size_bytes{pool="boot-pool"} 1.073741824e+11
+truenas_pool_size_bytes{pool="tank"} 4.398046511104e+13
+# HELP truenas_pool_status Always 1, with the pool's status: ONLINE, DEGRADED, FAULTED, OFFLINE, UNAVAIL or REMOVED.
+# TYPE truenas_pool_status gauge
+truenas_pool_status{pool="boot-pool",status="ONLINE"} 1
+truenas_pool_status{pool="tank",status="DEGRADED"} 1
+# HELP truenas_pool_vdev_allocated_bytes How much of each top-level vdev that holds data is written to.
+# TYPE truenas_pool_vdev_allocated_bytes gauge
+truenas_pool_vdev_allocated_bytes{class="cache",pool="tank",vdev="nvme2n1p1"} 4.294967296e+11
+truenas_pool_vdev_allocated_bytes{class="data",pool="boot-pool",vdev="mirror-0"} 2.147483648e+10
+truenas_pool_vdev_allocated_bytes{class="data",pool="tank",vdev="raidz2-0"} 3.298534883328e+13
+truenas_pool_vdev_allocated_bytes{class="special",pool="tank",vdev="mirror-1"} 1.073741824e+11
+# HELP truenas_pool_vdev_checksum_errors Times each top-level vdev has given back data that was not what was written, since the count was last cleared.
+# TYPE truenas_pool_vdev_checksum_errors gauge
+truenas_pool_vdev_checksum_errors{class="cache",pool="tank",vdev="nvme2n1p1"} 0
+truenas_pool_vdev_checksum_errors{class="data",pool="boot-pool",vdev="mirror-0"} 0
+truenas_pool_vdev_checksum_errors{class="data",pool="tank",vdev="raidz2-0"} 7
+truenas_pool_vdev_checksum_errors{class="spare",pool="tank",vdev="sde1"} 0
+truenas_pool_vdev_checksum_errors{class="special",pool="tank",vdev="mirror-1"} 0
+# HELP truenas_pool_vdev_fragmentation_ratio How broken up the free space of each top-level vdev that holds data is, from 0 to 1.
+# TYPE truenas_pool_vdev_fragmentation_ratio gauge
+truenas_pool_vdev_fragmentation_ratio{class="cache",pool="tank",vdev="nvme2n1p1"} 0
+truenas_pool_vdev_fragmentation_ratio{class="data",pool="boot-pool",vdev="mirror-0"} 0.49
+truenas_pool_vdev_fragmentation_ratio{class="data",pool="tank",vdev="raidz2-0"} 0.15
+truenas_pool_vdev_fragmentation_ratio{class="special",pool="tank",vdev="mirror-1"} 0.02
+# HELP truenas_pool_vdev_info Always 1, with the kind of each top-level vdev: RAIDZ2, MIRROR, DISK and so on.
+# TYPE truenas_pool_vdev_info gauge
+truenas_pool_vdev_info{class="cache",pool="tank",type="DISK",vdev="nvme2n1p1"} 1
+truenas_pool_vdev_info{class="data",pool="boot-pool",type="MIRROR",vdev="mirror-0"} 1
+truenas_pool_vdev_info{class="data",pool="tank",type="RAIDZ2",vdev="raidz2-0"} 1
+truenas_pool_vdev_info{class="spare",pool="tank",type="DISK",vdev="sde1"} 1
+truenas_pool_vdev_info{class="special",pool="tank",type="MIRROR",vdev="mirror-1"} 1
+# HELP truenas_pool_vdev_read_errors Reads of each top-level vdev that have gone wrong since the count was last cleared.
+# TYPE truenas_pool_vdev_read_errors gauge
+truenas_pool_vdev_read_errors{class="cache",pool="tank",vdev="nvme2n1p1"} 0
+truenas_pool_vdev_read_errors{class="data",pool="boot-pool",vdev="mirror-0"} 0
+truenas_pool_vdev_read_errors{class="data",pool="tank",vdev="raidz2-0"} 0
+truenas_pool_vdev_read_errors{class="spare",pool="tank",vdev="sde1"} 0
+truenas_pool_vdev_read_errors{class="special",pool="tank",vdev="mirror-1"} 0
+# HELP truenas_pool_vdev_size_bytes The size of each top-level vdev that holds data.
+# TYPE truenas_pool_vdev_size_bytes gauge
+truenas_pool_vdev_size_bytes{class="cache",pool="tank",vdev="nvme2n1p1"} 5.36870912e+11
+truenas_pool_vdev_size_bytes{class="data",pool="boot-pool",vdev="mirror-0"} 1.073741824e+11
+truenas_pool_vdev_size_bytes{class="data",pool="tank",vdev="raidz2-0"} 4.398046511104e+13
+truenas_pool_vdev_size_bytes{class="special",pool="tank",vdev="mirror-1"} 1.099511627776e+12
+# HELP truenas_pool_vdev_status Always 1, with the status of each top-level vdev.
+# TYPE truenas_pool_vdev_status gauge
+truenas_pool_vdev_status{class="cache",pool="tank",status="ONLINE",vdev="nvme2n1p1"} 1
+truenas_pool_vdev_status{class="data",pool="boot-pool",status="ONLINE",vdev="mirror-0"} 1
+truenas_pool_vdev_status{class="data",pool="tank",status="DEGRADED",vdev="raidz2-0"} 1
+truenas_pool_vdev_status{class="spare",pool="tank",status="ONLINE",vdev="sde1"} 1
+truenas_pool_vdev_status{class="special",pool="tank",status="ONLINE",vdev="mirror-1"} 1
+# HELP truenas_pool_vdev_write_errors Writes to each top-level vdev that have gone wrong since the count was last cleared.
+# TYPE truenas_pool_vdev_write_errors gauge
+truenas_pool_vdev_write_errors{class="cache",pool="tank",vdev="nvme2n1p1"} 0
+truenas_pool_vdev_write_errors{class="data",pool="boot-pool",vdev="mirror-0"} 0
+truenas_pool_vdev_write_errors{class="data",pool="tank",vdev="raidz2-0"} 0
+truenas_pool_vdev_write_errors{class="spare",pool="tank",vdev="sde1"} 0
+truenas_pool_vdev_write_errors{class="special",pool="tank",vdev="mirror-1"} 0
+# HELP truenas_pool_warning Whether the NAS has a warning about the pool (1) or not (0).
+# TYPE truenas_pool_warning gauge
+truenas_pool_warning{pool="boot-pool"} 0
+truenas_pool_warning{pool="tank"} 1
+# HELP truenas_service_enabled Whether each of the NAS's services starts with it (1) or not (0).
+# TYPE truenas_service_enabled gauge
+truenas_service_enabled{service="cifs"} 1
+truenas_service_enabled{service="ftp"} 0
+truenas_service_enabled{service="nfs"} 1
+truenas_service_enabled{service="ssh"} 1
+# HELP truenas_service_running Whether each of the NAS's services is running (1) or not (0).
+# TYPE truenas_service_running gauge
+truenas_service_running{service="cifs"} 1
+truenas_service_running{service="ftp"} 0
+truenas_service_running{service="nfs"} 1
+truenas_service_running{service="ssh"} 0
+# HELP truenas_share_clients Clients connected to the NAS's shares, by protocol: nfs or iscsi. The NAS gives no count for SMB.
+# TYPE truenas_share_clients gauge
+truenas_share_clients{protocol="iscsi"} 0
+truenas_share_clients{protocol="nfs"} 3
+# HELP truenas_shares Shares, by protocol and by whether each is enabled, disabled or locked with its dataset.
+# TYPE truenas_shares gauge
+truenas_shares{protocol="iscsi",state="disabled"} 0
+truenas_shares{protocol="iscsi",state="enabled"} 0
+truenas_shares{protocol="iscsi",state="locked"} 0
+truenas_shares{protocol="nfs",state="disabled"} 0
+truenas_shares{protocol="nfs",state="enabled"} 0
+truenas_shares{protocol="nfs",state="locked"} 1
+truenas_shares{protocol="smb",state="disabled"} 1
+truenas_shares{protocol="smb",state="enabled"} 2
+truenas_shares{protocol="smb",state="locked"} 0
+# HELP truenas_snapshots How many snapshots each pool has, of every dataset however deep.
+# TYPE truenas_snapshots gauge
+truenas_snapshots{pool="tank"} 132
+# HELP truenas_system_boot_timestamp_seconds When the NAS last started, in seconds since 1970.
+# TYPE truenas_system_boot_timestamp_seconds gauge
+truenas_system_boot_timestamp_seconds 9.458208e+08
+# HELP truenas_system_clock_offset_seconds The NAS's clock less the clock of the machine running truenas-metrics, when it was last asked.
+# TYPE truenas_system_clock_offset_seconds gauge
+truenas_system_clock_offset_seconds -0.02
+# HELP truenas_system_cpu_cores How many processor cores the NAS has, counting each thread of a core as one.
+# TYPE truenas_system_cpu_cores gauge
+truenas_system_cpu_cores 8
+# HELP truenas_system_cpu_physical_cores How many processor cores the NAS has, threads not counted.
+# TYPE truenas_system_cpu_physical_cores gauge
+truenas_system_cpu_physical_cores 4
+# HELP truenas_system_ecc_memory Whether the NAS's memory corrects its own errors (1) or not (0).
+# TYPE truenas_system_ecc_memory gauge
+truenas_system_ecc_memory 1
+# HELP truenas_system_info Always 1, with the version of TrueNAS and the machine it runs on.
+# TYPE truenas_system_info gauge
+truenas_system_info{cpu="Intel(R) Xeon(R) CPU E3-1230 v6",manufacturer="Supermicro",product="X11SSH-F",version="25.10.7"} 1
+# HELP truenas_system_load_average The load average of the NAS over the window: 1m, 5m or 15m.
+# TYPE truenas_system_load_average gauge
+truenas_system_load_average{window="15m"} 1.25
+truenas_system_load_average{window="1m"} 0.5
+truenas_system_load_average{window="5m"} 0.75
+# HELP truenas_system_memory_bytes How much memory the NAS has.
+# TYPE truenas_system_memory_bytes gauge
+truenas_system_memory_bytes 6.8719476736e+10
+# HELP truenas_system_state Whether the NAS is in each state (1) or not (0): BOOTING, READY or SHUTTING_DOWN.
+# TYPE truenas_system_state gauge
+truenas_system_state{state="BOOTING"} 0
+truenas_system_state{state="READY"} 1
+truenas_system_state{state="SHUTTING_DOWN"} 0
+# HELP truenas_system_uptime_seconds How long the NAS had been running when it was last asked.
+# TYPE truenas_system_uptime_seconds gauge
+truenas_system_uptime_seconds 864000
+# HELP truenas_task_enabled Whether each scheduled task is switched on (1) or not (0).
+# TYPE truenas_task_enabled gauge
+truenas_task_enabled{id="1",kind="replication",name="tank to offsite"} 1
+truenas_task_enabled{id="1",kind="scrub",name="tank"} 1
+truenas_task_enabled{id="1",kind="snapshot",name="tank/media"} 1
+truenas_task_enabled{id="2",kind="snapshot",name="tank/backups"} 0
+truenas_task_enabled{id="3",kind="cloud_sync",name="photos to the cloud"} 1
+truenas_task_enabled{id="4",kind="cloud_sync",name="documents to the cloud"} 1
+truenas_task_enabled{id="7",kind="rsync",name="media to the old NAS"} 1
+# HELP truenas_task_last_run_duration_seconds How long the last run of each scheduled task took, for the kinds the NAS times.
+# TYPE truenas_task_last_run_duration_seconds gauge
+truenas_task_last_run_duration_seconds{id="3",kind="cloud_sync",name="photos to the cloud"} 1500
+truenas_task_last_run_duration_seconds{id="4",kind="cloud_sync",name="documents to the cloud"} 40
+truenas_task_last_run_duration_seconds{id="7",kind="rsync",name="media to the old NAS"} 3
+# HELP truenas_task_last_run_failed Whether the last run of each scheduled task that has run failed (1) or not (0).
+# TYPE truenas_task_last_run_failed gauge
+truenas_task_last_run_failed{id="1",kind="snapshot",name="tank/media"} 0
+truenas_task_last_run_failed{id="2",kind="snapshot",name="tank/backups"} 1
+truenas_task_last_run_failed{id="3",kind="cloud_sync",name="photos to the cloud"} 0
+truenas_task_last_run_failed{id="4",kind="cloud_sync",name="documents to the cloud"} 0
+truenas_task_last_run_failed{id="7",kind="rsync",name="media to the old NAS"} 1
+# HELP truenas_task_last_run_timestamp_seconds When the last run of each scheduled task ended, in seconds since 1970.
+# TYPE truenas_task_last_run_timestamp_seconds gauge
+truenas_task_last_run_timestamp_seconds{id="1",kind="snapshot",name="tank/media"} 9.466812e+08
+truenas_task_last_run_timestamp_seconds{id="2",kind="snapshot",name="tank/backups"} 9.465912e+08
+truenas_task_last_run_timestamp_seconds{id="3",kind="cloud_sync",name="photos to the cloud"} 9.465984e+08
+truenas_task_last_run_timestamp_seconds{id="4",kind="cloud_sync",name="documents to the cloud"} 9.46674e+08
+truenas_task_last_run_timestamp_seconds{id="7",kind="rsync",name="media to the old NAS"} 9.466776e+08
+# HELP truenas_task_progress_ratio How far each running task says it has got, from 0 to 1. Only while it runs.
+# TYPE truenas_task_progress_ratio gauge
+truenas_task_progress_ratio{id="3",kind="cloud_sync",name="photos to the cloud"} 0.87
+# HELP truenas_task_running Whether each scheduled task is running now (1) or not (0).
+# TYPE truenas_task_running gauge
+truenas_task_running{id="1",kind="replication",name="tank to offsite"} 0
+truenas_task_running{id="1",kind="snapshot",name="tank/media"} 0
+truenas_task_running{id="2",kind="snapshot",name="tank/backups"} 0
+truenas_task_running{id="3",kind="cloud_sync",name="photos to the cloud"} 1
+truenas_task_running{id="4",kind="cloud_sync",name="documents to the cloud"} 0
+truenas_task_running{id="7",kind="rsync",name="media to the old NAS"} 0
+# HELP truenas_tasks Scheduled tasks, by kind.
+# TYPE truenas_tasks gauge
+truenas_tasks{kind="cloud_backup"} 0
+truenas_tasks{kind="cloud_sync"} 2
+truenas_tasks{kind="replication"} 1
+truenas_tasks{kind="rsync"} 1
+truenas_tasks{kind="scrub"} 1
+truenas_tasks{kind="snapshot"} 2
+# HELP truenas_tasks_enabled Scheduled tasks that are switched on, by kind.
+# TYPE truenas_tasks_enabled gauge
+truenas_tasks_enabled{kind="cloud_backup"} 0
+truenas_tasks_enabled{kind="cloud_sync"} 2
+truenas_tasks_enabled{kind="replication"} 1
+truenas_tasks_enabled{kind="rsync"} 1
+truenas_tasks_enabled{kind="scrub"} 1
+truenas_tasks_enabled{kind="snapshot"} 1
+# HELP truenas_tasks_failed Scheduled tasks whose last run failed, by kind.
+# TYPE truenas_tasks_failed gauge
+truenas_tasks_failed{kind="cloud_backup"} 0
+truenas_tasks_failed{kind="cloud_sync"} 0
+truenas_tasks_failed{kind="replication"} 0
+truenas_tasks_failed{kind="rsync"} 1
+truenas_tasks_failed{kind="snapshot"} 1
+# HELP truenas_tasks_running Scheduled tasks running now, by kind.
+# TYPE truenas_tasks_running gauge
+truenas_tasks_running{kind="cloud_backup"} 0
+truenas_tasks_running{kind="cloud_sync"} 1
+truenas_tasks_running{kind="replication"} 0
+truenas_tasks_running{kind="rsync"} 0
+truenas_tasks_running{kind="snapshot"} 0
+# HELP truenas_up Whether the NAS answered every question the last time it was asked the ones that change by the minute (1) or not (0).
+# TYPE truenas_up gauge
+truenas_up 1
+# HELP truenas_update_available Whether the NAS says a newer version of TrueNAS is available (1) or not (0).
+# TYPE truenas_update_available gauge
+truenas_update_available 1
+# HELP truenas_update_check_failed Whether the NAS could not find out if there is a newer version (1) or could (0).
+# TYPE truenas_update_check_failed gauge
+truenas_update_check_failed 0
+# HELP truenas_vm_state Always 1, with the state of each virtual machine.
+# TYPE truenas_vm_state gauge
+truenas_vm_state{state="RUNNING",vm="homeassistant"} 1
+truenas_vm_state{state="STOPPED",vm="scratch"} 1
+# HELP truenas_vms Virtual machines, by state.
+# TYPE truenas_vms gauge
+truenas_vms{state="RUNNING"} 1
+truenas_vms{state="STOPPED"} 1
+truenas_vms{state="SUSPENDED"} 0

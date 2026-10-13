@@ -1,0 +1,31 @@
+{
+  "version": "25.10.7",
+  "buildtime": {
+    "$date": 1788181994000
+  },
+  "hostname": "tank",
+  "physmem": 270262870016,
+  "model": "AMD EPYC 7543 32-Core Processor",
+  "cores": 32,
+  "physical_cores": 32,
+  "loadavg": [
+    0.35546875,
+    0.36083984375,
+    0.48193359375
+  ],
+  "uptime": "10 days, 13:07:39.272104",
+  "uptime_seconds": 911259.272104045,
+  "system_serial": "system_serial-1",
+  "system_product": "Standard PC (Q35 + ICH9, 2009)",
+  "system_product_version": "pc-q35-11.0",
+  "license": null,
+  "boottime": {
+    "$date": 1790938328000
+  },
+  "datetime": {
+    "$date": 1791849587000
+  },
+  "timezone": "America/Los_Angeles",
+  "system_manufacturer": "QEMU",
+  "ecc_memory": true
+}

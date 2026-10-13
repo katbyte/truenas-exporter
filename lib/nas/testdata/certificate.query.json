@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1,
+    "type": 8,
+    "name": "truenas_default",
+    "acme_uri": null,
+    "renew_days": 10,
+    "acme": null,
+    "add_to_trusted_store": false,
+    "cert_type": "CERTIFICATE",
+    "cert_type_existing": true,
+    "cert_type_CSR": false,
+    "cert_type_CA": false,
+    "key_length": 2048,
+    "key_type": "RSA",
+    "digest_algorithm": "SHA256",
+    "lifetime": 397,
+    "from": "Thu Feb 05 08:30:00 2026",
+    "until": "Sat Mar 06 08:30:00 2027",
+    "chain": false,
+    "expired": false,
+    "parsed": true
+  }
+]

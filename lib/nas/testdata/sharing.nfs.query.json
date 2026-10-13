@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1,
+    "path": "/mnt/tank/dataset-1",
+    "aliases": [],
+    "comment": "",
+    "networks": [],
+    "hosts": [],
+    "ro": false,
+    "maproot_user": null,
+    "maproot_group": null,
+    "mapall_user": null,
+    "mapall_group": null,
+    "security": [],
+    "enabled": true,
+    "locked": true,
+    "expose_snapshots": false
+  }
+]

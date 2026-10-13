@@ -1,0 +1,61 @@
+[
+  {
+    "id": 1,
+    "name": "tank to offsite",
+    "direction": "PUSH",
+    "transport": "SSH",
+    "source_datasets": ["tank/dataset-1"],
+    "target_dataset": "offsite/tank",
+    "recursive": true,
+    "auto": true,
+    "enabled": true,
+    "retention_policy": "SOURCE",
+    "state": {
+      "state": "FINISHED",
+      "datetime": {
+        "$date": 1791702004000
+      },
+      "last_snapshot": "tank/dataset-1@snapshot"
+    },
+    "job": null,
+    "has_encrypted_dataset_keys": false
+  },
+  {
+    "id": 2,
+    "name": "tank to the shelf",
+    "direction": "PUSH",
+    "transport": "LOCAL",
+    "source_datasets": ["tank/dataset-2"],
+    "target_dataset": "shelf/tank",
+    "recursive": false,
+    "auto": true,
+    "enabled": true,
+    "retention_policy": "NONE",
+    "state": {
+      "state": "HOLD",
+      "datetime": {
+        "$date": 1791705600000
+      },
+      "reason": "Dataset is locked."
+    },
+    "job": null,
+    "has_encrypted_dataset_keys": false
+  },
+  {
+    "id": 3,
+    "name": "never run",
+    "direction": "PULL",
+    "transport": "SSH",
+    "source_datasets": ["remote/dataset"],
+    "target_dataset": "tank/dataset-3",
+    "recursive": false,
+    "auto": false,
+    "enabled": false,
+    "retention_policy": "NONE",
+    "state": {
+      "state": "PENDING"
+    },
+    "job": null,
+    "has_encrypted_dataset_keys": false
+  }
+]

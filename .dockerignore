@@ -1,0 +1,16 @@
+.git
+.github
+.idea
+.tools/bin
+.tools/venv
+.tools/npm
+.coverage
+.capture
+dist
+truenas-metrics
+*.md
+docker-compose.yml
+.env*
+.testenv*.sh
+*.pem
+.testnas

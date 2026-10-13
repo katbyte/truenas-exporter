@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "name": "target-1",
+    "alias": null,
+    "mode": "ISCSI",
+    "groups": [],
+    "auth_networks": [],
+    "rel_tgt_id": 1,
+    "iscsi_parameters": null
+  }
+]

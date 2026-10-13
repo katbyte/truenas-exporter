@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "name": "homeassistant",
+    "description": "",
+    "vcpus": 1,
+    "cores": 2,
+    "threads": 1,
+    "memory": 4096,
+    "min_memory": null,
+    "autostart": true,
+    "bootloader": "UEFI",
+    "time": "LOCAL",
+    "shutdown_timeout": 90,
+    "devices": [],
+    "display_available": false,
+    "status": {
+      "state": "RUNNING",
+      "pid": 4242,
+      "domain_state": "RUNNING"
+    }
+  },
+  {
+    "id": 2,
+    "name": "scratch",
+    "description": "",
+    "vcpus": 1,
+    "cores": 1,
+    "threads": 1,
+    "memory": 2048,
+    "min_memory": null,
+    "autostart": false,
+    "bootloader": "UEFI",
+    "time": "LOCAL",
+    "shutdown_timeout": 90,
+    "devices": [],
+    "display_available": false,
+    "status": {
+      "state": "STOPPED",
+      "pid": null,
+      "domain_state": "SHUTOFF"
+    }
+  }
+]

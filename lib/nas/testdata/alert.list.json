@@ -1,0 +1,62 @@
+[
+  {
+    "source": "",
+    "klass": "RsyncFailed",
+    "node": "Controller A",
+    "datetime": {
+      "$date": 1768363442000
+    },
+    "last_occurrence": {
+      "$date": 1768363442000
+    },
+    "dismissed": false,
+    "id": "id-1",
+    "level": "CRITICAL",
+    "one_shot": true
+  },
+  {
+    "source": "",
+    "klass": "RsyncFailed",
+    "node": "Controller A",
+    "datetime": {
+      "$date": 1790654464000
+    },
+    "last_occurrence": {
+      "$date": 1790654464000
+    },
+    "dismissed": false,
+    "id": "id-2",
+    "level": "CRITICAL",
+    "one_shot": true
+  },
+  {
+    "source": "",
+    "klass": "RsyncSuccess",
+    "node": "Controller A",
+    "datetime": {
+      "$date": 1766082731000
+    },
+    "last_occurrence": {
+      "$date": 1766082731000
+    },
+    "dismissed": false,
+    "id": "id-3",
+    "level": "INFO",
+    "one_shot": true
+  },
+  {
+    "source": "",
+    "klass": "RsyncSuccess",
+    "node": "Controller A",
+    "datetime": {
+      "$date": 1783847184000
+    },
+    "last_occurrence": {
+      "$date": 1783847184000
+    },
+    "dismissed": false,
+    "id": "id-4",
+    "level": "INFO",
+    "one_shot": true
+  }
+]

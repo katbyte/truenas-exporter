@@ -1,0 +1,344 @@
+[
+  {
+    "id": "tank",
+    "type": "FILESYSTEM",
+    "name": "tank",
+    "pool": "tank",
+    "compressratio": {
+      "parsed": "1.04",
+      "rawvalue": "1.04",
+      "value": "1.04x",
+      "source": "NONE",
+      "source_info": null
+    },
+    "quota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "refquota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "used": {
+      "parsed": 566789391307776,
+      "rawvalue": "566789391307776",
+      "value": "value-2",
+      "source": "NONE",
+      "source_info": null
+    },
+    "available": {
+      "parsed": 274593752252000,
+      "rawvalue": "274593752252000",
+      "value": "value-3",
+      "source": "NONE",
+      "source_info": null
+    },
+    "mountpoint": "/mnt/tank",
+    "usedbydataset": {
+      "parsed": 141697347826944,
+      "rawvalue": "141697347826944",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "usedbysnapshots": {
+      "parsed": 35424336956736,
+      "rawvalue": "35424336956736",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "snapshot_count": 0
+  },
+  {
+    "id": "tank/dataset-5",
+    "type": "FILESYSTEM",
+    "name": "tank/dataset-5",
+    "pool": "tank",
+    "compressratio": {
+      "parsed": "1.04",
+      "rawvalue": "1.04",
+      "value": "1.04x",
+      "source": "NONE",
+      "source_info": null
+    },
+    "quota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "refquota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "used": {
+      "parsed": 5236453124448,
+      "rawvalue": "5236453124448",
+      "value": "value-4",
+      "source": "NONE",
+      "source_info": null
+    },
+    "available": {
+      "parsed": 274593752252000,
+      "rawvalue": "274593752252000",
+      "value": "value-3",
+      "source": "NONE",
+      "source_info": null
+    },
+    "mountpoint": "/mnt/tank/dataset-5",
+    "usedbydataset": {
+      "parsed": 1309113281112,
+      "rawvalue": "1309113281112",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "usedbysnapshots": {
+      "parsed": 327278320278,
+      "rawvalue": "327278320278",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "snapshot_count": 12
+  },
+  {
+    "id": "tank/dataset-7",
+    "type": "FILESYSTEM",
+    "name": "tank/dataset-7",
+    "pool": "tank",
+    "compressratio": {
+      "parsed": "1.00",
+      "rawvalue": "1.00",
+      "value": "1.00x",
+      "source": "NONE",
+      "source_info": null
+    },
+    "quota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "refquota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "used": {
+      "parsed": 419492951797920,
+      "rawvalue": "419492951797920",
+      "value": "value-5",
+      "source": "NONE",
+      "source_info": null
+    },
+    "available": {
+      "parsed": 274593752252000,
+      "rawvalue": "274593752252000",
+      "value": "value-3",
+      "source": "NONE",
+      "source_info": null
+    },
+    "mountpoint": "/mnt/tank/dataset-7",
+    "usedbydataset": {
+      "parsed": 104873237949480,
+      "rawvalue": "104873237949480",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "usedbysnapshots": {
+      "parsed": 26218309487370,
+      "rawvalue": "26218309487370",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "snapshot_count": 24
+  },
+  {
+    "id": "tank/dataset-6",
+    "type": "FILESYSTEM",
+    "name": "tank/dataset-6",
+    "pool": "tank",
+    "compressratio": {
+      "parsed": "1.13",
+      "rawvalue": "1.13",
+      "value": "1.13x",
+      "source": "NONE",
+      "source_info": null
+    },
+    "quota": {
+      "parsed": 17592186044416,
+      "rawvalue": "17592186044416",
+      "value": "value-6",
+      "source": "LOCAL",
+      "source_info": null
+    },
+    "refquota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "used": {
+      "parsed": 1905064560672,
+      "rawvalue": "1905064560672",
+      "value": "value-7",
+      "source": "NONE",
+      "source_info": null
+    },
+    "available": {
+      "parsed": 15687121483744,
+      "rawvalue": "15687121483744",
+      "value": "value-8",
+      "source": "NONE",
+      "source_info": null
+    },
+    "mountpoint": "/mnt/tank/dataset-6",
+    "usedbydataset": {
+      "parsed": 476266140168,
+      "rawvalue": "476266140168",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "usedbysnapshots": {
+      "parsed": 119066535042,
+      "rawvalue": "119066535042",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "snapshot_count": 36
+  },
+  {
+    "id": "tank/dataset-7/dataset-17",
+    "type": "FILESYSTEM",
+    "name": "tank/dataset-7/dataset-17",
+    "pool": "tank",
+    "compressratio": {
+      "parsed": "1.00",
+      "rawvalue": "1.00",
+      "value": "1.00x",
+      "source": "NONE",
+      "source_info": null
+    },
+    "quota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "refquota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "used": {
+      "parsed": 244859044291680,
+      "rawvalue": "244859044291680",
+      "value": "value-9",
+      "source": "NONE",
+      "source_info": null
+    },
+    "available": {
+      "parsed": 274593752252000,
+      "rawvalue": "274593752252000",
+      "value": "value-3",
+      "source": "NONE",
+      "source_info": null
+    },
+    "mountpoint": "/mnt/tank/dataset-7/dataset-17",
+    "usedbydataset": {
+      "parsed": 61214761072920,
+      "rawvalue": "61214761072920",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "usedbysnapshots": {
+      "parsed": 15303690268230,
+      "rawvalue": "15303690268230",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "snapshot_count": 48
+  },
+  {
+    "id": "tank/dataset-7/dataset-18",
+    "type": "FILESYSTEM",
+    "name": "tank/dataset-7/dataset-18",
+    "pool": "tank",
+    "compressratio": {
+      "parsed": "1.00",
+      "rawvalue": "1.00",
+      "value": "1.00x",
+      "source": "NONE",
+      "source_info": null
+    },
+    "quota": {
+      "parsed": 21990232555520,
+      "rawvalue": "21990232555520",
+      "value": "20T",
+      "source": "LOCAL",
+      "source_info": null
+    },
+    "refquota": {
+      "parsed": null,
+      "rawvalue": "0",
+      "value": null,
+      "source": "DEFAULT",
+      "source_info": null
+    },
+    "used": {
+      "parsed": 11698545925248,
+      "rawvalue": "11698545925248",
+      "value": "value-10",
+      "source": "NONE",
+      "source_info": null
+    },
+    "available": {
+      "parsed": 274593752252000,
+      "rawvalue": "274593752252000",
+      "value": "value-3",
+      "source": "NONE",
+      "source_info": null
+    },
+    "mountpoint": "/mnt/tank/dataset-7/dataset-18",
+    "usedbydataset": {
+      "parsed": 2924636481312,
+      "rawvalue": "2924636481312",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "usedbysnapshots": {
+      "parsed": 731159120328,
+      "rawvalue": "731159120328",
+      "value": "value",
+      "source": "NONE",
+      "source_info": null
+    },
+    "snapshot_count": 60
+  }
+]

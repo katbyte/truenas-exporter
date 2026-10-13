@@ -1,0 +1,23 @@
+[
+  {
+    "id": 29241,
+    "method": "cloudsync.sync",
+    "transient": false,
+    "description": null,
+    "abortable": true,
+    "progress": {
+      "percent": 87,
+      "description": "description-1"
+    },
+    "result": null,
+    "result_encoding_error": null,
+    "error": null,
+    "exception": null,
+    "exc_info": null,
+    "state": "RUNNING",
+    "time_started": {
+      "$date": 1791792002000
+    },
+    "time_finished": null
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "code": "NORMAL",
+  "status": {
+    "current_version": {
+      "train": "TrueNAS-SCALE-Goldeye",
+      "profile": "MISSION_CRITICAL",
+      "matches_profile": true
+    },
+    "new_version": null
+  },
+  "error": null,
+  "update_download_progress": null
+}

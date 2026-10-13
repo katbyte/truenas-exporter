@@ -1,0 +1,97 @@
+// Package cli implements the truenas-metrics command line interface: the cobra commands, flag and config handling, and the server that serves the
+// metrics page.
+package cli
+
+import (
+	"errors"
+	"fmt"
+	"sync"
+
+	"github.com/katbyte/go-kt/version"
+	"github.com/katbyte/truenas-metrics/lib/poll"
+	"github.com/spf13/cobra"
+)
+
+func Make() (*cobra.Command, error) {
+	return makeWith(connect)
+}
+
+// makeWith is Make with the NAS's client made by connect, so a test can stand in for a NAS.
+func makeWith(connect connector) (*cobra.Command, error) {
+	root := &cobra.Command{
+		Use:   "truenas-metrics [command]",
+		Short: "truenas-metrics reports what a TrueNAS says about itself as a Prometheus metrics page",
+		Long: `Reports what a TrueNAS says about itself as a Prometheus metrics page: the health of its
+pools and the errors against each disk, scrubs and resilvers, space by dataset, snapshots,
+alerts, how its scheduled tasks last went, services, apps and virtual machines. It only
+ever asks the NAS questions, over its API.
+Complete documentation is available at https://github.com/katbyte/truenas-metrics`,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Run \"truenas-metrics help\" for more information about available truenas-metrics commands.")
+			return nil
+		},
+	}
+
+	root.AddCommand(&cobra.Command{
+		Use:           "version",
+		Short:         "Print the version number of truenas-metrics",
+		Long:          `Print the version number of truenas-metrics`,
+		Args:          cobra.NoArgs,
+		SilenceErrors: true,
+		Run: func(cmd *cobra.Command, _ []string) {
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "truenas-metrics "+version.Version)
+		},
+	})
+
+	root.AddCommand(&cobra.Command{
+		Use:   "print",
+		Short: "Ask the NAS once and print the metrics page",
+		Long: `Asks the NAS every question once and prints the page a scrape would read, without serving
+anything: a check that the address, the user and the key work, and a look at what would be
+reported.`,
+		Args:          cobra.NoArgs,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cmd.SilenceUsage = true
+
+			f := GetFlags()
+			p, closer, err := f.poller(connect)
+			if err != nil {
+				return err
+			}
+			defer closer()
+
+			page, err := f.page(p)
+			if err != nil {
+				return err
+			}
+
+			var wg sync.WaitGroup
+			for _, round := range poll.Rounds {
+				wg.Go(func() { p.Poll(cmd.Context(), round) })
+			}
+			wg.Wait()
+
+			if err := page.Write(cmd.OutOrStdout()); err != nil {
+				return err
+			}
+
+			// the page is printed either way, with what a NAS that did not answer looks like on it; what went wrong is in the log
+			if s := p.State(); !s.FastRound.OK || !s.SlowRound.OK {
+				return errors.New("the NAS did not answer every question")
+			}
+
+			return nil
+		},
+	})
+
+	root.AddCommand(serveCmd(connect))
+
+	if err := configureFlags(root); err != nil {
+		return nil, fmt.Errorf("unable to configure flags: %w", err)
+	}
+	// the settings file is read once the flags are parsed, since a flag can name it; before any command's own checks, which read what it holds
+	root.PersistentPreRunE = func(*cobra.Command, []string) error { return loadConfig() }
+
+	return root, nil
+}

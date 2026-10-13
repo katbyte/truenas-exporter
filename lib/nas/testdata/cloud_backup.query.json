@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1,
+    "description": "tank to the bucket",
+    "path": "/mnt/tank/dataset-1",
+    "schedule": {
+      "minute": "0",
+      "hour": "3",
+      "dom": "*",
+      "month": "*",
+      "dow": "*"
+    },
+    "pre_script": "",
+    "post_script": "",
+    "snapshot": false,
+    "enabled": true,
+    "job": {
+      "id": 31007,
+      "method": "cloud_backup.sync",
+      "transient": false,
+      "description": null,
+      "abortable": true,
+      "progress": {
+        "percent": 100,
+        "description": "",
+        "extra": null
+      },
+      "result": null,
+      "error": null,
+      "exception": null,
+      "exc_info": null,
+      "state": "ABORTED",
+      "time_started": {
+        "$date": 1791784801000
+      },
+      "time_finished": {
+        "$date": 1791784861000
+      }
+    },
+    "locked": false,
+    "keep_last": 30,
+    "transfer_setting": "DEFAULT",
+    "absolute_paths": false,
+    "cache_path": null,
+    "rate_limit": null
+  }
+]

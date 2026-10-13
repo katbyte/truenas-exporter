@@ -1,0 +1,48 @@
+[
+  {
+    "id": 3,
+    "name": "metrics",
+    "username": "metrics",
+    "user_identifier": 3001,
+    "keyhash": "made-up",
+    "created_at": {
+      "$date": 1791000000000
+    },
+    "expires_at": {
+      "$date": 1822536000000
+    },
+    "local": true,
+    "revoked": false,
+    "revoked_reason": null
+  },
+  {
+    "id": 2,
+    "name": "old",
+    "username": "metrics",
+    "user_identifier": 3001,
+    "keyhash": "made-up",
+    "created_at": {
+      "$date": 1760000000000
+    },
+    "expires_at": {
+      "$date": 1790000000000
+    },
+    "local": true,
+    "revoked": true,
+    "revoked_reason": "Replaced."
+  },
+  {
+    "id": 1,
+    "name": "forever",
+    "username": "metrics",
+    "user_identifier": 3001,
+    "keyhash": "made-up",
+    "created_at": {
+      "$date": 1760000000000
+    },
+    "expires_at": null,
+    "local": true,
+    "revoked": false,
+    "revoked_reason": null
+  }
+]

@@ -1,0 +1,44 @@
+# Default always-on deployment: runs the released image from ghcr.io and serves the metrics page
+# for a Grafana Alloy, or a Prometheus, on the same host to scrape.
+# To run a local build instead: make docker, then set image: truenas-metrics (or add build: .).
+# The API key comes from a gitignored .env next to this file, see .env.example.
+# The image's own healthcheck asks /healthz on the default port; add a healthcheck here if
+# TRUENAS_METRICS_LISTEN names another.
+
+networks:
+  net:
+    name: net
+
+services:
+  truenas-metrics:
+    image: ghcr.io/katbyte/truenas-metrics:latest
+    container_name: truenas-metrics
+    hostname: truenas-metrics
+    restart: always
+    networks:
+      net:
+    # only the host itself can reach the page: whatever scrapes it runs there. Drop the address
+    # to let the rest of the network in, since the page needs no password
+    ports:
+      - "127.0.0.1:9089:9089"
+    # the certificate the NAS shows, for TRUENAS_METRICS_CERTIFICATE_FILE: the README says how to fetch it
+    volumes:
+      - "./nas.pem:/etc/truenas-metrics/nas.pem:ro"
+    env_file:
+      - .env
+    environment:
+      - "TZ=America/Vancouver"
+      - "TRUENAS_METRICS_SERVER=nas.example.net"
+      - "TRUENAS_METRICS_USERNAME=metrics"
+      - "TRUENAS_METRICS_CERTIFICATE_FILE=/etc/truenas-metrics/nas.pem"
+      - "TRUENAS_METRICS_LISTEN=:9089"
+      - "TRUENAS_METRICS_LOG=INFO"
+      # - "TRUENAS_METRICS_CA_FILE=/etc/truenas-metrics/ca.pem"  # in place of the certificate, for a NAS given one with its own name on it
+      # - "TRUENAS_METRICS_LABELS=hostname=nas"                  # labels for every reading, when whatever scrapes the page adds none of its own
+      # - "TRUENAS_METRICS_FAST_INTERVAL=30s"                    # how often pools, scans, alerts, services, jobs and apps are read
+      # - "TRUENAS_METRICS_SLOW_INTERVAL=5m"                     # how often disks, datasets, tasks, shares and certificates are read
+      # - "TRUENAS_METRICS_DATASET_DEPTH=1"                      # how far below its pool a dataset may be and still be named
+    logging:
+      options:
+        max-size: 100m
+        max-file: "1"

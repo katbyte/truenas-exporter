@@ -1,0 +1,38 @@
+[
+  {
+    "id": 2,
+    "purpose": "TIMEMACHINE_SHARE",
+    "name": "desc-3",
+    "path": "/mnt/tank/dataset-8",
+    "enabled": true,
+    "comment": "",
+    "readonly": false,
+    "browsable": true,
+    "access_based_share_enumeration": false,
+    "locked": false
+  },
+  {
+    "id": 3,
+    "purpose": "DEFAULT_SHARE",
+    "name": "name-10",
+    "path": "/mnt/tank/dataset-7",
+    "enabled": true,
+    "comment": "",
+    "readonly": false,
+    "browsable": true,
+    "access_based_share_enumeration": false,
+    "locked": false
+  },
+  {
+    "id": 4,
+    "purpose": "DEFAULT_SHARE",
+    "name": "description-7",
+    "path": "/mnt/tank/dataset-2",
+    "enabled": true,
+    "comment": "",
+    "readonly": false,
+    "browsable": true,
+    "access_based_share_enumeration": false,
+    "locked": false
+  }
+]

@@ -1,0 +1,96 @@
+{
+  "name": "boot-pool",
+  "status": "ONLINE",
+  "path": "path-10",
+  "scan": {
+    "function": "SCRUB",
+    "state": "FINISHED",
+    "start_time": {
+      "$date": 1791283502000
+    },
+    "end_time": {
+      "$date": 1791283526000
+    },
+    "percentage": 99.99489188194275,
+    "bytes_to_process": 21730746368,
+    "bytes_processed": 21731553280,
+    "bytes_issued": 21727698944,
+    "pause": null,
+    "errors": 0,
+    "total_secs_left": null
+  },
+  "expand": null,
+  "is_upgraded": false,
+  "healthy": true,
+  "warning": false,
+  "status_code": "OK",
+  "status_detail": null,
+  "size": 50465865728,
+  "allocated": 21929115648,
+  "free": 28536750080,
+  "freeing": 0,
+  "dedup_table_size": 0,
+  "dedup_table_quota": "auto",
+  "fragmentation": "49",
+  "size_str": "50465865728",
+  "allocated_str": "21929115648",
+  "free_str": "28536750080",
+  "freeing_str": "0",
+  "autotrim": {
+    "value": "value-1",
+    "rawvalue": "value-1",
+    "parsed": "value-1",
+    "source": "DEFAULT"
+  },
+  "topology": {
+    "data": [
+      {
+        "name": "sda3",
+        "type": "DISK",
+        "path": "/dev/sda3",
+        "guid": "10000000000000110866",
+        "status": "ONLINE",
+        "stats": {
+          "timestamp": 911244957338260,
+          "read_errors": 0,
+          "write_errors": 0,
+          "checksum_errors": 0,
+          "ops": [
+            0,
+            613830,
+            14621579,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bytes": [
+            0,
+            32737181696,
+            294973050880,
+            0,
+            0,
+            0,
+            0
+          ],
+          "size": 50465865728,
+          "allocated": 21929115648,
+          "fragmentation": 49,
+          "self_healed": 0,
+          "configured_ashift": 12,
+          "logical_ashift": 9,
+          "physical_ashift": 9
+        },
+        "children": [],
+        "device": "sda3",
+        "disk": "sda",
+        "unavail_disk": null
+      }
+    ],
+    "log": [],
+    "cache": [],
+    "spare": [],
+    "special": [],
+    "dedup": []
+  }
+}

@@ -1,0 +1,83 @@
+[
+  {
+    "dataset": "tank/dataset-2",
+    "recursive": true,
+    "lifetime_value": 6,
+    "lifetime_unit": "MONTH",
+    "enabled": true,
+    "naming_schema": "naming_schema-1",
+    "allow_empty": false,
+    "schedule": {
+      "minute": "0",
+      "hour": "0",
+      "dom": "1",
+      "month": "*",
+      "dow": "*",
+      "begin": "00:00",
+      "end": "23:59"
+    },
+    "id": 1,
+    "state": {
+      "state": "FINISHED",
+      "datetime": {
+        "$date": 1790838000000
+      },
+      "last_snapshot": "tank/dataset-2@snapshot"
+    },
+    "vmware_sync": false
+  },
+  {
+    "dataset": "tank/dataset-4",
+    "recursive": true,
+    "lifetime_value": 6,
+    "lifetime_unit": "MONTH",
+    "enabled": true,
+    "naming_schema": "naming_schema-2",
+    "allow_empty": false,
+    "schedule": {
+      "minute": "0",
+      "hour": "0",
+      "dom": "1",
+      "month": "*",
+      "dow": "*",
+      "begin": "00:00",
+      "end": "23:59"
+    },
+    "id": 2,
+    "state": {
+      "state": "FINISHED",
+      "datetime": {
+        "$date": 1790838000000
+      },
+      "last_snapshot": "tank/dataset-4@snapshot"
+    },
+    "vmware_sync": false
+  },
+  {
+    "dataset": "tank/dataset-5",
+    "recursive": false,
+    "lifetime_value": 6,
+    "lifetime_unit": "MONTH",
+    "enabled": true,
+    "naming_schema": "naming_schema-3",
+    "allow_empty": false,
+    "schedule": {
+      "minute": "0",
+      "hour": "0",
+      "dom": "1",
+      "month": "*",
+      "dow": "*",
+      "begin": "00:00",
+      "end": "23:59"
+    },
+    "id": 3,
+    "state": {
+      "state": "FINISHED",
+      "datetime": {
+        "$date": 1790838000000
+      },
+      "last_snapshot": "tank/dataset-5@snapshot"
+    },
+    "vmware_sync": false
+  }
+]
