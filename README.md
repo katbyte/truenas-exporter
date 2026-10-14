@@ -134,6 +134,17 @@ truenas_pool_healthy == 0              # a pool is not healthy
 truenas_task_last_run_failed == 1      # a scheduled task failed
 ```
 
+## How this is built
+
+The code is written with Claude Code. I review it, then prune or rework it until it has the shape I want. I set the design and the scope, and I decide what stays.
+
+What CI holds it to:
+
+- **Tests.** Unit tests run under the race detector. The whole page is saved and compared. A test fails if the program calls anything but its list of read-only methods.
+- **Live tests.** CI installs a real TrueNAS in a virtual machine and checks the page against what that NAS says. So far that NAS is a healthy one with a single pool: no apps, virtual machines, replication or failing disks.
+- **Lint.** golangci-lint, markdownlint, typos, yamllint, shellcheck and actionlint.
+- **Security.** CodeQL, govulncheck, Trivy on the built program, and zizmor on the workflows.
+
 ## More
 
 - [docs/readings.md](docs/readings.md): every reading and its labels.
