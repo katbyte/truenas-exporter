@@ -21,8 +21,10 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/katbyte/go-kt v0.7.0 h1:Xk6aQ0ycGuzZbZ0Q438EleKQcvifqq/Z/z9hhg5NH2M=
 github.com/katbyte/go-kt v0.7.0/go.mod h1:0dkaFzx8RL6xjHoMnSRP6g3a04MwS87dtjjhSvEsIbE=
-github.com/katbyte/truenas-mcp v0.0.0-20261014022908-5344aba2685d h1:ugkgvs2GvlA7QidJlAuHKOZxuBELa1q8zKrjfJAT2u0=
-github.com/katbyte/truenas-mcp v0.0.0-20261014022908-5344aba2685d/go.mod h1:sOJkBFP6lcaA3JpjTWzS1iY3QzOdrXL88Dp9igA4jLA=
+github.com/katbyte/pandorest v0.9.1 h1:hz1Vs3MCv3ujrT+czUzlwhKIKcGXlV97zZE5zb6jFoc=
+github.com/katbyte/pandorest v0.9.1/go.mod h1:/G8x/cxqKrKpao9vZfAfQ2cv6oPYs5UpIzXx8TzicHk=
+github.com/katbyte/truenas-mcp v0.0.0-20261014073745-cf580260d372 h1:16Iqg5y8gdVhmTSGb5YXx/TKAnD/4+L8vONjF9YLMRY=
+github.com/katbyte/truenas-mcp v0.0.0-20261014073745-cf580260d372/go.mod h1:N5nJ0ftKPatgQZ3E30vKYCpVKNQmQZycIP4bCZpptCA=
 github.com/klauspost/compress v1.20.1 h1:T7kKElXUMXrUJ2E9QhQhxFtcK5rPyLdsGZvdbLMPdiQ=
 github.com/klauspost/compress v1.20.1/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=

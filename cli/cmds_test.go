@@ -446,8 +446,8 @@ func standIn(t *testing.T) (nas *truenastest.NAS, certFile string) {
 	return nas, certFile
 }
 
-// A replication's encryption key comes back from the NAS with the rest of what it says of the replication, even to a user who may only read, and
-// under a name a trace does not hide unasked. With the log turned all the way up every answer is written down, and the key must not be in it.
+// A replication's encryption key comes back from the NAS with the rest of what it says of the replication, even to a user who may only read. With
+// the log turned all the way up every answer is written down, and the key must not be in it: truenas-mcp's connection hides it.
 //
 //nolint:paralleltest // viper is global state; Make mutates it
 func TestATraceNeverShowsAReplicationsEncryptionKey(t *testing.T) {

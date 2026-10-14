@@ -5,115 +5,88 @@ import (
 	"time"
 
 	"github.com/katbyte/go-kt/pointer"
+	"github.com/katbyte/truenas-mcp/sdk/truenas"
 	"github.com/katbyte/truenas-metrics/lib/poll"
 )
-
-// systemInfo is what system.info answers, less what the page has no use for.
-type systemInfo struct {
-	Version       string    `json:"version"`
-	Product       string    `json:"system_product"`
-	Manufacturer  string    `json:"system_manufacturer"`
-	Model         string    `json:"model"`
-	Memory        int64     `json:"physmem"`
-	Cores         int       `json:"cores"`
-	PhysicalCores int       `json:"physical_cores"`
-	Load          []float64 `json:"loadavg"`
-	Uptime        float64   `json:"uptime_seconds"`
-	Booted        moment    `json:"boottime"`
-	Clock         moment    `json:"datetime"`
-	ECC           bool      `json:"ecc_memory"`
-}
 
 // System asks the NAS about itself, and whether it has finished starting.
 func (n *NAS) System(ctx context.Context) (poll.System, error) {
 	asked := time.Now()
-	info, err := ask[systemInfo](ctx, n, "system.info")
+	info, err := n.api.System.Info(ctx)
 	if err != nil {
 		return poll.System{}, err
 	}
 	answered := time.Now()
 
-	state, err := ask[string](ctx, n, "system.state")
+	state, err := n.api.System.State(ctx)
 	if err != nil {
 		return poll.System{}, err
 	}
 
 	s := poll.System{
 		Version:       info.Version,
-		Product:       info.Product,
-		Manufacturer:  info.Manufacturer,
+		Product:       info.SystemProduct,
+		Manufacturer:  info.SystemManufacturer,
 		CPU:           info.Model,
-		State:         state,
-		Booted:        info.Booted.Time,
-		Uptime:        time.Duration(info.Uptime * float64(time.Second)),
-		Memory:        info.Memory,
+		State:         pointer.From(state.Answer),
+		Booted:        info.Boottime.Time,
+		Uptime:        time.Duration(info.UptimeSeconds * float64(time.Second)),
+		Memory:        int64(info.Physmem),
 		Cores:         info.Cores,
 		PhysicalCores: info.PhysicalCores,
-		ECC:           info.ECC,
+		ECC:           info.EccMemory,
 	}
-	copy(s.Load[:], info.Load)
+	for i := range min(len(info.Loadavg), len(s.Load)) {
+		s.Load[i], _ = number(info.Loadavg[i])
+	}
 
 	// the NAS read its clock somewhere between the question leaving and the answer arriving: halfway is the best guess there is
-	if !info.Clock.IsZero() {
-		s.ClockOffset = info.Clock.Sub(asked.Add(answered.Sub(asked) / 2))
+	if !info.Datetime.IsZero() {
+		s.ClockOffset = info.Datetime.Sub(asked.Add(answered.Sub(asked) / 2))
 	}
 
 	return s, nil
 }
 
-// updateStatus is what update.status answers, less what the page has no use for.
-type updateStatus struct {
-	Code   string `json:"code"`
-	Status *struct {
-		NewVersion *struct{} `json:"new_version"`
-	} `json:"status"`
-}
-
 // Update asks the NAS whether it knows of a newer version of itself.
 func (n *NAS) Update(ctx context.Context) (poll.Update, error) {
-	status, err := ask[updateStatus](ctx, n, "update.status")
+	status, err := n.api.Update.Status(ctx)
 	if err != nil {
 		return poll.Update{}, err
 	}
 
 	return poll.Update{
 		Available:   status.Status != nil && status.Status.NewVersion != nil,
-		CheckFailed: status.Code == "ERROR",
+		CheckFailed: status.Code == truenas.UpdateStatusAnswerCodeERROR,
 	}, nil
 }
 
 // Directory asks the NAS which directory service it is joined to, if any, and how that is going.
 func (n *NAS) Directory(ctx context.Context) (poll.Directory, error) {
-	status, err := ask[struct {
-		Type   *string `json:"type"`
-		Status *string `json:"status"`
-	}](ctx, n, "directoryservices.status")
+	status, err := n.api.Directoryservices.Status(ctx)
 	if err != nil {
 		return poll.Directory{}, err
 	}
 
-	return poll.Directory{Type: pointer.From(status.Type), Status: pointer.From(status.Status)}, nil
+	return poll.Directory{Type: string(status.Type), Status: string(status.Status)}, nil
 }
 
 // Key asks the NAS when the key the questions are asked with runs out. The NAS lists every key of the user logged in and does not say which one
 // this is, so the answer is the soonest any of them that still works runs out.
 func (n *NAS) Key(ctx context.Context) (poll.Key, error) {
-	keys, err := ask[[]struct {
-		Expires moment `json:"expires_at"`
-		Revoked bool   `json:"revoked"`
-	}](ctx, n, "api_key.my_keys")
+	keys, err := n.api.ApiKey.MyKeys(ctx)
 	if err != nil {
 		return poll.Key{}, err
 	}
 
 	var k poll.Key
-	for _, key := range keys {
-		if key.Revoked || key.Expires.IsZero() {
+	for _, key := range keys.Answer {
+		if key.Revoked || key.ExpiresAt.IsZero() {
 			continue
 		}
 
-		if k.Expires.IsZero() || key.Expires.Before(k.Expires) {
-			k.Expires = key.Expires.Time
+		if k.Expires.IsZero() || key.ExpiresAt.Before(k.Expires) {
+			k.Expires = key.ExpiresAt.Time
 		}
 	}
 

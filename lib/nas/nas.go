@@ -1,7 +1,8 @@
 // Package nas asks a TrueNAS the poller's questions over its API and turns what it says into the poller's own words.
 //
-// Each question is one or a few of the API's methods, all of them reads, and each answer is decoded into only the fields the page reports: what a
-// newer TrueNAS adds is ignored, and what an older one lacks is left empty. Nothing here dials or logs in; the calls go through a Caller that does.
+// Each question is one or a few of the API's methods, all of them reads, asked through truenas-mcp's typed client. Its types are made from the
+// NAS's own description of each answer: a field that does not fit them fails that method, and is put right in truenas-mcp rather than here.
+// Nothing here dials or logs in; the calls go through a Caller that does.
 package nas
 
 import (
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/katbyte/go-kt/clog"
+	"github.com/katbyte/truenas-mcp/sdk/truenas/client"
 	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
@@ -29,8 +31,9 @@ type Options struct {
 
 // NAS is one TrueNAS, asked through a Caller.
 type NAS struct {
-	c Caller
-	o Options
+	c   Caller
+	o   Options
+	api *client.Client
 
 	// missing is the methods the NAS has been found not to have, so each is logged once and not at every round.
 	missing sync.Map
@@ -44,29 +47,33 @@ var _ poll.NAS = (*NAS)(nil)
 
 // New is the NAS at the other end of c.
 func New(c Caller, o Options) *NAS {
-	return &NAS{c: c, o: o}
+	n := &NAS{c: c, o: o}
+
+	// the typed client turns down only a missing connection, and calls is always one
+	n.api, _ = client.New(calls{n})
+
+	return n
 }
 
-// ask makes one call and gives its answer as a T. What went wrong is said with the method's name in front, since a question can be several methods.
-func ask[T any](ctx context.Context, n *NAS, method string, params ...any) (T, error) {
-	var answer T
+// calls is the connection as the typed client uses it: a failure says which method it was, since a question can be several, and a method the NAS
+// does not have is answered with nothing when Options says how to tell.
+type calls struct{ n *NAS }
 
-	err := n.c.Call(ctx, method, params, &answer)
+func (c calls) Call(ctx context.Context, method string, params []any, into any) error {
+	err := c.n.c.Call(ctx, method, params, into)
 	if err == nil {
-		return answer, nil
+		return nil
 	}
 
-	if n.o.NoSuchMethod != nil && n.o.NoSuchMethod(err) {
-		if _, told := n.missing.LoadOrStore(method, true); !told {
+	if c.n.o.NoSuchMethod != nil && c.n.o.NoSuchMethod(err) {
+		if _, told := c.n.missing.LoadOrStore(method, true); !told {
 			clog.Log.Warnf("this NAS has no %s: what it would have said is left off the page", method)
 		}
 
-		var nothing T
-
-		return nothing, nil
+		return nil
 	}
 
-	return answer, fmt.Errorf("%s: %w", method, err)
+	return fmt.Errorf("%s: %w", method, err)
 }
 
 // zone is the time zone the NAS names, or UTC for one this machine does not know, which is said once.

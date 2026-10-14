@@ -437,10 +437,10 @@ func TestCertificates(t *testing.T) {
 	}
 	same(t, "certificates", got, []poll.Certificate{{Name: "truenas_default", Expires: time.Date(2027, time.March, 6, 16, 30, 0, 0, time.UTC)}})
 
-	// a time that names its zone, or is a number, is where it says it is whatever the NAS's zone, and a zone this machine does not know is UTC
+	// a time that names its zone is where it says it is whatever the NAS's zone, and a zone this machine does not know is UTC
 	for _, c := range []struct{ zone, until string }{
 		{"America/Los_Angeles", `"2027-03-06T08:30:00Z"`},
-		{"America/Los_Angeles", `{"$date": 1804321800000}`},
+		{"America/Los_Angeles", `"2027-03-06 00:30:00"`},
 		{"Nowhere/Atlantis", `"Sat Mar 06 08:30:00 2027"`},
 	} {
 		got, err = of(&canned{instead: map[string]string{"certificate.query": `[{"name": "c", "until": ` + c.until + `}]`, "system.info": `{"timezone": "` + c.zone + `"}`}}).Certificates(t.Context())

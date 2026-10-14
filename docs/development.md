@@ -15,7 +15,7 @@ Dependencies are vendored. The dev tools are pinned in `.tools/go.mod` and the m
 - [`lib/poll`](../lib/poll) asks the questions on two schedules and keeps the last good answer to each.
 - [`lib/nas`](../lib/nas) is the only part that knows the TrueNAS API: which methods answer each question, and how to read what they say.
 - [`lib/readings`](../lib/readings) turns what the poller knows into the page.
-- The connection to the NAS is [truenas-mcp](https://github.com/katbyte/truenas-mcp)'s.
+- The connection to the NAS, and the types its answers are read into, are [truenas-mcp](https://github.com/katbyte/truenas-mcp)'s. A field that does not fit those types is put right there.
 
 ## The tests
 

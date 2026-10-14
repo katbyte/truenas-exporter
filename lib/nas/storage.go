@@ -2,49 +2,37 @@ package nas
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/katbyte/go-kt/pointer"
+	"github.com/katbyte/truenas-mcp/sdk/truenas"
 	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
 // Disks asks the NAS for every disk it knows of, and for the temperature of each.
 func (n *NAS) Disks(ctx context.Context) ([]poll.Disk, error) {
-	disks, err := ask[[]struct {
-		Name      string  `json:"name"`
-		Serial    string  `json:"serial"`
-		WWN       *string `json:"lunid"`
-		Model     *string `json:"model"`
-		Type      *string `json:"type"`
-		Bus       string  `json:"bus"`
-		Size      *int64  `json:"size"`
-		Enclosure *struct {
-			Number int `json:"number"`
-			Slot   int `json:"slot"`
-		} `json:"enclosure"`
-	}](ctx, n, "disk.query")
+	disks, err := n.api.Disk.Query(ctx, nil, truenas.DiskQueryOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	// a disk that gives no temperature is in the answer with nothing against its name
-	temperatures, err := ask[map[string]*float64](ctx, n, "disk.temperatures")
+	answer, err := n.api.Disk.Temperatures(ctx, nil, false)
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]poll.Disk, 0, len(disks))
-	for _, d := range disks {
-		disk := poll.Disk{
-			Name:        d.Name,
-			Serial:      d.Serial,
-			WWN:         pointer.From(d.WWN),
-			Model:       pointer.From(d.Model),
-			Type:        pointer.From(d.Type),
-			Bus:         d.Bus,
-			Size:        pointer.From(d.Size),
-			Temperature: temperatures[d.Name],
+	// the NAS's description gives this answer no shape, so it is read here: a disk that gives no temperature has nothing against its name
+	var temperatures map[string]*float64
+	if len(answer.Answer) > 0 {
+		if err := json.Unmarshal(answer.Answer, &temperatures); err != nil {
+			return nil, fmt.Errorf("disk.temperatures: %w", err)
 		}
+	}
 
+	out := make([]poll.Disk, 0, len(disks.Answer))
+	for _, d := range disks.Answer {
+		disk := poll.Disk{Name: d.Name, Serial: d.Serial, WWN: d.Lunid, Model: d.Model, Type: d.Type, Bus: d.Bus, Size: int64(d.Size), Temperature: temperatures[d.Name]}
 		if d.Enclosure != nil {
 			disk.Slot = &poll.Slot{Enclosure: d.Enclosure.Number, Slot: d.Enclosure.Slot}
 		}
@@ -60,39 +48,27 @@ var datasetProperties = []string{"used", "available", "usedbydataset", "usedbysn
 
 // Datasets asks the NAS for every dataset, however deep, as one flat list with how many snapshots each has.
 func (n *NAS) Datasets(ctx context.Context) ([]poll.Dataset, error) {
-	options := map[string]any{"extra": map[string]any{"flat": true, "retrieve_children": true, "properties": datasetProperties, "snapshots_count": true}}
-
-	datasets, err := ask[[]struct {
-		Name            string   `json:"name"`
-		Pool            string   `json:"pool"`
-		Type            string   `json:"type"`
-		Used            property `json:"used"`
-		Available       property `json:"available"`
-		UsedByDataset   property `json:"usedbydataset"`
-		UsedBySnapshots property `json:"usedbysnapshots"`
-		Quota           property `json:"quota"`
-		RefQuota        property `json:"refquota"`
-		Compression     property `json:"compressratio"`
-		Snapshots       *int     `json:"snapshot_count"`
-	}](ctx, n, "pool.dataset.query", []any{}, options)
+	datasets, err := n.api.PoolDataset.Query(ctx, nil, truenas.PoolDatasetQueryOptions{Extra: map[string]any{"flat": true, "retrieve_children": true, "properties": datasetProperties, "snapshots_count": true}})
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]poll.Dataset, 0, len(datasets))
-	for _, d := range datasets {
+	out := make([]poll.Dataset, 0, len(datasets.Answer))
+	for _, d := range datasets.Answer {
+		compression, _ := number(pointer.From(d.Compressratio).Parsed)
+
 		out = append(out, poll.Dataset{
 			Name:            d.Name,
 			Pool:            d.Pool,
 			Type:            d.Type,
-			Used:            d.Used.bytes(),
-			Available:       d.Available.bytes(),
-			UsedByDataset:   d.UsedByDataset.bytes(),
-			UsedBySnapshots: d.UsedBySnapshots.bytes(),
-			Quota:           d.Quota.limit(),
-			RefQuota:        d.RefQuota.limit(),
-			Compression:     d.Compression.Parsed.Value,
-			Snapshots:       d.Snapshots,
+			Used:            size(pointer.From(d.Used).Parsed),
+			Available:       size(pointer.From(d.Available).Parsed),
+			UsedByDataset:   size(pointer.From(d.Usedbydataset).Parsed),
+			UsedBySnapshots: size(pointer.From(d.Usedbysnapshots).Parsed),
+			Quota:           limit(pointer.From(d.Quota).Parsed),
+			RefQuota:        limit(pointer.From(d.Refquota).Parsed),
+			Compression:     compression,
+			Snapshots:       d.SnapshotCount,
 		})
 	}
 
@@ -101,22 +77,32 @@ func (n *NAS) Datasets(ctx context.Context) ([]poll.Dataset, error) {
 
 // Shares asks the NAS for its SMB and NFS shares and its iSCSI targets. Nothing of a share is kept but how it is offered and whether it is on.
 func (n *NAS) Shares(ctx context.Context) ([]poll.Share, error) {
-	type share struct {
-		Enabled *bool `json:"enabled"`
-		Locked  *bool `json:"locked"`
+	smb, err := n.api.SharingSmb.Query(ctx, nil, truenas.SharingSmbQueryOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	nfs, err := n.api.SharingNfs.Query(ctx, nil, truenas.SharingNfsQueryOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	iscsi, err := n.api.IscsiTarget.Query(ctx, nil, truenas.IscsiTargetQueryOptions{})
+	if err != nil {
+		return nil, err
 	}
 
 	var out []poll.Share
-	for _, kind := range []struct{ protocol, method string }{{"smb", "sharing.smb.query"}, {"nfs", "sharing.nfs.query"}, {"iscsi", "iscsi.target.query"}} {
-		shares, err := ask[[]share](ctx, n, kind.method)
-		if err != nil {
-			return nil, err
-		}
+	for _, s := range smb.Answer {
+		out = append(out, poll.Share{Protocol: "smb", Enabled: s.Enabled, Locked: pointer.From(s.Locked)})
+	}
+	for _, s := range nfs.Answer {
+		out = append(out, poll.Share{Protocol: "nfs", Enabled: s.Enabled, Locked: pointer.From(s.Locked)})
+	}
 
-		for _, s := range shares {
-			// an iSCSI target has no switch of its own: it is on while the service is
-			out = append(out, poll.Share{Protocol: kind.protocol, Enabled: s.Enabled == nil || *s.Enabled, Locked: pointer.From(s.Locked)})
-		}
+	// an iSCSI target has no switch of its own: it is on while the service is
+	for range iscsi.Answer {
+		out = append(out, poll.Share{Protocol: "iscsi", Enabled: true})
 	}
 
 	return out, nil
@@ -125,25 +111,21 @@ func (n *NAS) Shares(ctx context.Context) ([]poll.Share, error) {
 // Certificates asks the NAS for the certificates it holds and when each runs out. The NAS writes those times in its own time zone without naming
 // it, so it is asked for its zone too.
 func (n *NAS) Certificates(ctx context.Context) ([]poll.Certificate, error) {
-	certificates, err := ask[[]struct {
-		Name  string `json:"name"`
-		Until moment `json:"until"`
-	}](ctx, n, "certificate.query")
+	certificates, err := n.api.Certificate.Query(ctx, nil, truenas.CertificateQueryOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	info, err := ask[struct {
-		Zone string `json:"timezone"`
-	}](ctx, n, "system.info")
+	info, err := n.api.System.Info(ctx)
 	if err != nil {
 		return nil, err
 	}
-	zone := n.zone(info.Zone)
+	zone := n.zone(info.Timezone)
 
-	out := make([]poll.Certificate, 0, len(certificates))
-	for _, c := range certificates {
-		out = append(out, poll.Certificate{Name: c.Name, Expires: c.Until.in(zone)})
+	out := make([]poll.Certificate, 0, len(certificates.Answer))
+	for i := range certificates.Answer {
+		c := &certificates.Answer[i]
+		out = append(out, poll.Certificate{Name: c.Name, Expires: expiry(c.Until, zone)})
 	}
 
 	return out, nil
@@ -154,21 +136,15 @@ const linkUp = "LINK_STATE_UP"
 
 // Interfaces asks the NAS for its network interfaces and whether each has a link.
 func (n *NAS) Interfaces(ctx context.Context) ([]poll.Interface, error) {
-	interfaces, err := ask[[]struct {
-		Name  string `json:"name"`
-		Type  string `json:"type"`
-		State struct {
-			Link string `json:"link_state"`
-			MTU  int    `json:"mtu"`
-		} `json:"state"`
-	}](ctx, n, "interface.query")
+	interfaces, err := n.api.Interface.Query(ctx, nil, truenas.InterfaceQueryOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]poll.Interface, 0, len(interfaces))
-	for _, i := range interfaces {
-		out = append(out, poll.Interface{Name: i.Name, Type: i.Type, LinkUp: i.State.Link == linkUp, MTU: i.State.MTU})
+	out := make([]poll.Interface, 0, len(interfaces.Answer))
+	for _, i := range interfaces.Answer {
+		state := pointer.From(i.State)
+		out = append(out, poll.Interface{Name: i.Name, Type: i.Type, LinkUp: state.LinkState == linkUp, MTU: state.Mtu})
 	}
 
 	return out, nil

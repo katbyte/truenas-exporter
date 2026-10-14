@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/katbyte/pandorest/client"
 )
 
 // The codes a TrueNAS refuses a call with: JSON-RPC's own, and two of its own for a connection asking too much at once and for a call it could not
@@ -38,6 +40,23 @@ type Error struct {
 	Reason string
 	// Extra is whatever more the NAS sent, as it sent it: for refused arguments, one entry per argument (Invalid reads them).
 	Extra json.RawMessage
+}
+
+// As lets a refusal be read as the generated client's kind of refusal, *client.CallError, which code written against sdk/truenas asks for
+// with errors.As: the same fields, Extra decoded from the JSON it came as.
+func (e *Error) As(target any) bool {
+	into, ok := target.(**client.CallError)
+	if !ok {
+		return false
+	}
+
+	var extra any
+	if len(e.Extra) > 0 {
+		_ = json.Unmarshal(e.Extra, &extra)
+	}
+	*into = &client.CallError{Method: e.Method, Code: e.Code, Message: e.Message, Errno: e.Errno, ErrName: e.ErrName, Reason: e.Reason, Extra: extra}
+
+	return true
 }
 
 // Invalid is one argument the NAS refused, and why.
@@ -222,12 +241,16 @@ func IsInvalid(err error) bool {
 	return ok && e.Code == CodeInvalidParams && !e.missing()
 }
 
-// IsNotFound reports whether the NAS has nothing of the id or name a call asked for.
+// IsNotFound reports whether the NAS has nothing of the id or name a call asked for. That includes a query told to answer the one row it
+// matches when no row does, which a NAS refuses with nothing but the name of what went wrong inside it.
 func IsNotFound(err error) bool {
 	e, ok := errors.AsType[*Error](err)
 
-	return ok && (e.ErrName == "ENOENT" || e.missing())
+	return ok && (e.ErrName == "ENOENT" || e.missing() || e.ErrName == "EINVAL" && e.Reason == noMatch)
 }
+
+// noMatch is all a NAS says when a query told to answer its one row matches none: seen on a real 25.10.7.
+const noMatch = "MatchNotFound()"
 
 // IsTooManyCalls reports whether the NAS refused a call because the connection, or the address it comes from, is asking too much at once.
 func IsTooManyCalls(err error) bool {

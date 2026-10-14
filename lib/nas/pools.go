@@ -5,118 +5,60 @@ import (
 	"time"
 
 	"github.com/katbyte/go-kt/pointer"
+	"github.com/katbyte/truenas-mcp/sdk/truenas"
 	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
-// pool is one pool as pool.query and boot.get_state give it, less what the page has no use for. A pool that is not imported has little but its
-// name and status: the rest is nothing at all.
-type pool struct {
-	Name          string    `json:"name"`
-	Status        string    `json:"status"`
-	Healthy       bool      `json:"healthy"`
-	Warning       bool      `json:"warning"`
-	Size          *int64    `json:"size"`
-	Allocated     *int64    `json:"allocated"`
-	Free          *int64    `json:"free"`
-	Freeing       *int64    `json:"freeing"`
-	Fragmentation number    `json:"fragmentation"`
-	Scan          *scan     `json:"scan"`
-	Topology      *topology `json:"topology"`
-}
-
-// scan is a pool's last scrub or resilver. A pool never scanned has one with nothing in it.
-type scan struct {
-	Function  *string  `json:"function"`
-	State     *string  `json:"state"`
-	Started   moment   `json:"start_time"`
-	Ended     moment   `json:"end_time"`
-	Percent   *float64 `json:"percentage"`
-	ToExamine *int64   `json:"bytes_to_process"`
-	Examined  *int64   `json:"bytes_processed"`
-	Issued    *int64   `json:"bytes_issued"`
-	Paused    moment   `json:"pause"`
-	Errors    *int64   `json:"errors"`
-	Left      *float64 `json:"total_secs_left"`
-}
-
-// topology is a pool's vdevs, sorted into the parts of the pool they belong to.
-type topology struct {
-	Data    []vdev `json:"data"`
-	Log     []vdev `json:"log"`
-	Cache   []vdev `json:"cache"`
-	Spare   []vdev `json:"spare"`
-	Special []vdev `json:"special"`
-	Dedup   []vdev `json:"dedup"`
-}
-
-// vdev is one node of a pool's tree: a raidz or a mirror with its disks under it, or a disk.
-type vdev struct {
-	Name     string  `json:"name"`
-	Type     string  `json:"type"`
-	GUID     string  `json:"guid"`
-	Status   string  `json:"status"`
-	Disk     *string `json:"disk"`
-	Children []vdev  `json:"children"`
-	Stats    struct {
-		Read          int64   `json:"read_errors"`
-		Write         int64   `json:"write_errors"`
-		Checksum      int64   `json:"checksum_errors"`
-		Size          int64   `json:"size"`
-		Allocated     int64   `json:"allocated"`
-		Fragmentation float64 `json:"fragmentation"`
-	} `json:"stats"`
-}
-
 // Pools asks the NAS for its pools, the boot pool not among them.
 func (n *NAS) Pools(ctx context.Context) ([]poll.Pool, error) {
-	pools, err := ask[[]pool](ctx, n, "pool.query")
+	pools, err := n.api.Pool.Query(ctx, nil, truenas.PoolQueryOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]poll.Pool, 0, len(pools))
-	for i := range pools {
-		out = append(out, pools[i].poll())
+	out := make([]poll.Pool, 0, len(pools.Answer))
+	for i := range pools.Answer {
+		out = append(out, pool(&pools.Answer[i]))
 	}
 
 	return out, nil
 }
 
-// BootPool asks the NAS for the pool it runs from.
+// BootPool asks the NAS for the pool it runs from, which it answers with a type of its own holding the same fields as any other pool's.
 func (n *NAS) BootPool(ctx context.Context) (poll.Pool, error) {
-	boot, err := ask[pool](ctx, n, "boot.get_state")
+	boot, err := n.api.Boot.GetState(ctx)
 	if err != nil {
 		return poll.Pool{}, err
 	}
 
-	return boot.poll(), nil
+	return pool(&truenas.PoolQueryResultItem{Name: boot.Name, Status: boot.Status, Healthy: boot.Healthy, Warning: boot.Warning, Size: boot.Size, Allocated: boot.Allocated, Free: boot.Free, Freeing: boot.Freeing, Fragmentation: boot.Fragmentation, Scan: boot.Scan, Topology: boot.Topology}), nil
 }
 
-// poll is the pool in the poller's words.
-func (p *pool) poll() poll.Pool {
+// pool is a pool in the poller's words. A pool that is not imported has little but its name and status: the rest is nothing at all.
+func pool(p *truenas.PoolQueryResultItem) poll.Pool {
 	out := poll.Pool{
 		Name:      p.Name,
 		Status:    p.Status,
 		Healthy:   p.Healthy,
 		Warning:   p.Warning,
-		Size:      pointer.From(p.Size),
-		Allocated: pointer.From(p.Allocated),
-		Free:      pointer.From(p.Free),
-		Freeing:   pointer.From(p.Freeing),
-		Scan:      p.Scan.poll(),
+		Size:      int64(p.Size),
+		Allocated: int64(p.Allocated),
+		Free:      int64(p.Free),
+		Freeing:   int64(p.Freeing),
+		Scan:      scan(p.Scan),
 	}
 
-	if p.Fragmentation.Known {
-		out.Fragmentation = new(ratio(p.Fragmentation.Value))
+	if fragmentation, ok := number(p.Fragmentation); ok {
+		out.Fragmentation = new(ratio(fragmentation))
 	}
 
 	if t := p.Topology; t != nil {
 		for _, part := range []struct {
 			class string
-			vdevs []vdev
+			vdevs []truenas.PoolVdev
 		}{{"data", t.Data}, {"log", t.Log}, {"cache", t.Cache}, {"spare", t.Spare}, {"special", t.Special}, {"dedup", t.Dedup}} {
 			for i := range part.vdevs {
-				out.Vdevs = append(out.Vdevs, part.vdevs[i].poll(part.class))
+				out.Vdevs = append(out.Vdevs, vdev(&part.vdevs[i], part.class))
 			}
 		}
 	}
@@ -124,71 +66,78 @@ func (p *pool) poll() poll.Pool {
 	return out
 }
 
-// poll is the scan in the poller's words, and nil for a pool that has never had one.
-func (s *scan) poll() *poll.Scan {
-	if s == nil || s.Function == nil || s.State == nil {
+// scan is a pool's last scrub or resilver in the poller's words, and nil for a pool that has never had one: the NAS gives that pool a scan with
+// nothing in it.
+func scan(s *truenas.PoolScan) *poll.Scan {
+	if s == nil || s.Function == "" || s.State == "" {
 		return nil
 	}
 
 	out := &poll.Scan{
-		Function:  *s.Function,
-		State:     *s.State,
-		Started:   s.Started.Time,
-		Ended:     s.Ended.Time,
-		Progress:  ratio(pointer.From(s.Percent)),
-		ToExamine: pointer.From(s.ToExamine),
-		Examined:  pointer.From(s.Examined),
-		Issued:    pointer.From(s.Issued),
-		Errors:    pointer.From(s.Errors),
-		Paused:    !s.Paused.IsZero(),
+		Function:  s.Function,
+		State:     s.State,
+		Started:   s.StartTime.Time,
+		Ended:     s.EndTime.Time,
+		Progress:  ratio(s.Percentage),
+		ToExamine: int64(s.BytesToProcess),
+		Examined:  int64(s.BytesProcessed),
+		Issued:    int64(s.BytesIssued),
+		Errors:    int64(s.Errors),
+		Paused:    s.Pause != nil,
 	}
 
-	if s.Left != nil {
-		out.Left = new(time.Duration(*s.Left * float64(time.Second)))
+	if s.TotalSecsLeft != nil {
+		out.Left = new(time.Duration(*s.TotalSecsLeft) * time.Second)
 	}
 
 	return out
 }
 
-// poll is a top-level vdev in the poller's words, with every disk under it however deep: a disk being replaced sits a level further down than the
+// vdev is a top-level vdev in the poller's words, with every disk under it however deep: a disk being replaced sits a level further down than the
 // rest, beside the one replacing it.
-func (v *vdev) poll(class string) poll.Vdev {
+func vdev(v *truenas.PoolVdev, class string) poll.Vdev {
 	// zpool lists a vdev of one disk under a long number where the NAS gives one; the disk's own name says more
 	name := v.Name
-	if disk := pointer.From(v.Disk); len(v.Children) == 0 && disk != "" {
-		name = disk
+	if len(v.Children) == 0 && v.Disk != "" {
+		name = v.Disk
 	}
 
+	stats := pointer.From(v.Stats)
 	out := poll.Vdev{
 		Class:         class,
 		Name:          name,
 		Type:          v.Type,
 		Status:        v.Status,
-		Size:          v.Stats.Size,
-		Allocated:     v.Stats.Allocated,
-		Fragmentation: ratio(v.Stats.Fragmentation),
-		Errors:        poll.Errors{Read: v.Stats.Read, Write: v.Stats.Write, Checksum: v.Stats.Checksum},
+		Size:          int64(stats.Size),
+		Allocated:     int64(stats.Allocated),
+		Fragmentation: ratio(float64(stats.Fragmentation)),
+		Errors:        errorsOf(stats),
 	}
-	v.disks(&out.Devices)
+	disks(v, &out.Devices)
 
 	return out
 }
 
-// disks adds the disks at and under this node. A node with nothing under it is a disk, whatever it is called.
-func (v *vdev) disks(into *[]poll.Device) {
+// disks adds the disks at and under v. A node with nothing under it is a disk, whatever it is called.
+func disks(v *truenas.PoolVdev, into *[]poll.Device) {
 	if len(v.Children) > 0 {
 		for i := range v.Children {
-			v.Children[i].disks(into)
+			disks(&v.Children[i], into)
 		}
 
 		return
 	}
 
 	// a disk the NAS can no longer find has no name; the pool still knows it by its number, which tells two missing disks apart
-	disk := pointer.From(v.Disk)
+	disk := v.Disk
 	if disk == "" {
-		disk = v.GUID
+		disk = v.Guid
 	}
 
-	*into = append(*into, poll.Device{Disk: disk, Status: v.Status, Errors: poll.Errors{Read: v.Stats.Read, Write: v.Stats.Write, Checksum: v.Stats.Checksum}})
+	*into = append(*into, poll.Device{Disk: disk, Status: v.Status, Errors: errorsOf(pointer.From(v.Stats))})
+}
+
+// errorsOf is the errors a vdev or a disk has counted.
+func errorsOf(s truenas.PoolVdevStats) poll.Errors {
+	return poll.Errors{Read: int64(s.ReadErrors), Write: int64(s.WriteErrors), Checksum: int64(s.ChecksumErrors)}
 }
