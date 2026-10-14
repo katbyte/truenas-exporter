@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,27 +21,23 @@ import (
 // toolName is what the program is called, on the page's front and in its help.
 const toolName = "truenas-metrics"
 
-// The defaults: what changes by the minute is read as often as a scrape every 30 seconds asks, and the rest every few minutes, since it only
-// changes when somebody changes it or a task runs.
-const (
-	defaultListen       = ":9089"
-	defaultFastInterval = 30 * time.Second
-	defaultSlowInterval = 5 * time.Minute
-)
+// defaultListen is where the page is served unless the settings say otherwise.
+const defaultListen = ":9089"
 
 type FlagData struct {
-	Server               string        `mapstructure:"server"`
-	Username             string        `mapstructure:"username"`
-	APIKey               string        `mapstructure:"api-key"`
-	CertificateFile      string        `mapstructure:"certificate-file"`
-	CAFile               string        `mapstructure:"ca-file"`
-	SkipCertificateCheck bool          `mapstructure:"skip-certificate-check"`
-	SendKeyUnchecked     bool          `mapstructure:"send-key-unchecked"`
-	Listen               string        `mapstructure:"listen"`
-	Labels               string        `mapstructure:"labels"`
-	FastInterval         time.Duration `mapstructure:"fast-interval"`
-	SlowInterval         time.Duration `mapstructure:"slow-interval"`
-	DatasetDepth         int           `mapstructure:"dataset-depth"`
+	Server               string `mapstructure:"server"`
+	Username             string `mapstructure:"username"`
+	APIKey               string `mapstructure:"api-key"`
+	CertificateFile      string `mapstructure:"certificate-file"`
+	CAFile               string `mapstructure:"ca-file"`
+	SkipCertificateCheck bool   `mapstructure:"skip-certificate-check"`
+	SendKeyUnchecked     bool   `mapstructure:"send-key-unchecked"`
+	Listen               string `mapstructure:"listen"`
+	Labels               string `mapstructure:"labels"`
+	DatasetDepth         int    `mapstructure:"dataset-depth"`
+	Metrics              string `mapstructure:"metrics"`
+	Skip                 string `mapstructure:"skip"`
+	Intervals            string `mapstructure:"intervals"`
 }
 
 // envNames binds each flag to its environment variable.
@@ -54,9 +51,10 @@ var envNames = map[string]string{
 	"send-key-unchecked":     "TRUENAS_METRICS_SEND_KEY_UNCHECKED",
 	"listen":                 "TRUENAS_METRICS_LISTEN",
 	"labels":                 "TRUENAS_METRICS_LABELS",
-	"fast-interval":          "TRUENAS_METRICS_FAST_INTERVAL",
-	"slow-interval":          "TRUENAS_METRICS_SLOW_INTERVAL",
 	"dataset-depth":          "TRUENAS_METRICS_DATASET_DEPTH",
+	"metrics":                "TRUENAS_METRICS_METRICS",
+	"skip":                   "TRUENAS_METRICS_SKIP",
+	"intervals":              "TRUENAS_METRICS_INTERVALS",
 }
 
 // persistent is the flag set configureFlags bound, for the one setting that has to be read before viper is: where the settings file is.
@@ -74,9 +72,10 @@ func configureFlags(root *cobra.Command) error {
 	pflags.Bool("send-key-unchecked", false, "with --skip-certificate-check, send the key to a TrueNAS before version 26 all the same: it takes a key only as it is, so whatever answers at the address is handed it")
 	pflags.String("listen", defaultListen, "serve the metrics page on this address")
 	pflags.String("labels", "", "labels to put on every reading, as name=value,name=value: hostname=nas say, when whatever scrapes the page adds none of its own")
-	pflags.Duration("fast-interval", defaultFastInterval, "how often pools and their scans, alerts, services, jobs, apps and the NAS's own state are read")
-	pflags.Duration("slow-interval", defaultSlowInterval, "how often disks, datasets, tasks, shares, certificates and updates are read")
 	pflags.Int("dataset-depth", readings.DefaultDatasetDepth, "how far below its pool a dataset may be and still be named on the page: 0 for each pool's own alone, 1 for those directly under it too")
+	pflags.String("metrics", "", "the parts of the NAS to ask about and no others, with commas between them: "+areaNames(poll.Areas)+"; every one unless set, and the NAS's own state always")
+	pflags.String("skip", "", "leave these parts of the NAS out of those --metrics names, named as for it: apps,vms say; nothing of them is on the page")
+	pflags.String("intervals", "", "how often to ask about some parts of the NAS, as part=duration with commas between them: snapshots=30m,apps=1m say; unset, "+defaultsSaid())
 	pflags.String("config", "", "read settings from this file and no other, in place of ./.truenas-metrics or ~/.truenas-metrics (or export TRUENAS_METRICS_CONFIG)")
 
 	persistent = pflags
@@ -211,9 +210,132 @@ func (f *FlagData) connection() (connection, error) {
 	return connection{server: f.Server, username: f.Username, key: f.APIKey, certFile: f.CertificateFile, caFile: f.CAFile, skipCheck: f.SkipCertificateCheck, sendUnchecked: f.SendKeyUnchecked}, nil
 }
 
+// skipped is the parts of the NAS the settings leave unasked: those --metrics does not name, when it names any, and those --skip names. A word that
+// names no part is a mistake said now, since a page quietly missing what was asked for reads as a NAS with none of it.
+func (f *FlagData) skipped() ([]poll.Area, error) {
+	metrics, err := areas("metrics", f.Metrics)
+	if err != nil {
+		return nil, err
+	}
+
+	skip, err := areas("skip", f.Skip)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(metrics) == 0 {
+		metrics = poll.Areas
+	}
+
+	var out []poll.Area
+	for _, area := range poll.Areas {
+		if !slices.Contains(metrics, area) || slices.Contains(skip, area) {
+			out = append(out, area)
+		}
+	}
+
+	return out, nil
+}
+
+// areas is the parts of the NAS one setting names.
+func areas(flag, list string) ([]poll.Area, error) {
+	var out []poll.Area
+	for word := range strings.SplitSeq(list, ",") {
+		area := poll.Area(strings.ToLower(strings.TrimSpace(word)))
+		switch {
+		case area == "":
+		case slices.Contains(poll.Areas, area):
+			out = append(out, area)
+		default:
+			return nil, fmt.Errorf("--%s (%s) takes %s, with commas between them, and not %q", flag, envNames[flag], areaNames(poll.Areas), strings.TrimSpace(word))
+		}
+	}
+
+	return out, nil
+}
+
+// areaNames is areas as a list to read.
+func areaNames(areas []poll.Area) string {
+	names := make([]string, len(areas))
+	for i, area := range areas {
+		names[i] = string(area)
+	}
+
+	return strings.Join(names, ", ")
+}
+
+// intervals is how often the settings say to ask about each part of the NAS: as often as it is by default, but for the parts --intervals names. A
+// part or a length of time that cannot be read is a mistake said now.
+func (f *FlagData) intervals() (poll.Intervals, error) {
+	every := poll.DefaultIntervals()
+	for pair := range strings.SplitSeq(f.Intervals, ",") {
+		if strings.TrimSpace(pair) == "" {
+			continue
+		}
+
+		name, length, ok := strings.Cut(pair, "=")
+		area := poll.Area(strings.ToLower(strings.TrimSpace(name)))
+		if _, known := every[area]; !ok || !known {
+			return nil, fmt.Errorf("--intervals (%s) takes part=duration with commas between them, a part being %s, and not %q", envNames["intervals"], areaNames(poll.Every), strings.TrimSpace(pair))
+		}
+
+		d, err := time.ParseDuration(strings.TrimSpace(length))
+		if err != nil || d <= 0 {
+			return nil, fmt.Errorf("--intervals (%s) says how often %s is asked about, as 30s or 10m say, and not %q", envNames["intervals"], area, strings.TrimSpace(length))
+		}
+
+		every[area] = d
+	}
+
+	return every, nil
+}
+
+// defaultsSaid is how often each part of the NAS is asked about by default, as the help says it.
+func defaultsSaid() string {
+	every := poll.DefaultIntervals()
+
+	var lengths []time.Duration
+	for _, area := range poll.Every {
+		if !slices.Contains(lengths, every[area]) {
+			lengths = append(lengths, every[area])
+		}
+	}
+
+	said := make([]string, 0, len(lengths))
+	for _, length := range lengths {
+		areas := slices.DeleteFunc(slices.Clone(poll.Every), func(a poll.Area) bool { return every[a] != length })
+		said = append(said, areaNames(areas)+" every "+short(length))
+	}
+
+	return strings.Join(said, "; ")
+}
+
+// short is a length of time as a person writes it: 5m, not 5m0s.
+func short(d time.Duration) string {
+	s := d.String()
+	if strings.HasSuffix(s, "m0s") {
+		s = strings.TrimSuffix(s, "0s")
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = strings.TrimSuffix(s, "0m")
+	}
+
+	return s
+}
+
 // poller is a poller for the NAS the settings name, not yet started, and what closes its connection.
 func (f *FlagData) poller(connect connector) (*poll.Poller, func(), error) {
 	c, err := f.connection()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	skip, err := f.skipped()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	every, err := f.intervals()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -223,15 +345,21 @@ func (f *FlagData) poller(connect connector) (*poll.Poller, func(), error) {
 		return nil, nil, err
 	}
 
-	p, err := poll.New(nas, poll.Intervals{Fast: f.FastInterval, Slow: f.SlowInterval})
+	p, err := poll.New(nas, every, skip...)
 	if err != nil {
 		closer()
 
-		return nil, nil, fmt.Errorf("--fast-interval and --slow-interval (%s, %s): %w", envNames["fast-interval"], envNames["slow-interval"], err)
+		return nil, nil, fmt.Errorf("--intervals (%s): %w", envNames["intervals"], err)
 	}
 
 	// the address and the user are logged and the key never is
-	clog.Log.Infof("reporting on the TrueNAS at %s as %s, every %s and every %s", f.Server, f.Username, f.FastInterval, f.SlowInterval)
+	clog.Log.Infof("reporting on the TrueNAS at %s as %s", f.Server, f.Username)
+	if f.Intervals != "" {
+		clog.Log.Infof("asking about %s as often as --intervals says", f.Intervals)
+	}
+	if len(skip) > 0 {
+		clog.Log.Infof("not asking about %s", areaNames(skip))
+	}
 
 	switch {
 	case f.SendKeyUnchecked:

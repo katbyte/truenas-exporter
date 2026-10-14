@@ -85,9 +85,10 @@ Each setting is a flag, an environment variable or a line in a settings file. [d
 | `TRUENAS_METRICS_SEND_KEY_UNCHECKED` | `--send-key-unchecked` | send the key without checking the certificate |
 | `TRUENAS_METRICS_LISTEN` | `--listen` | where the page is served, default `:9089` |
 | `TRUENAS_METRICS_LABELS` | `--labels` | labels for every reading, as `name=value,name=value` |
-| `TRUENAS_METRICS_FAST_INTERVAL` | `--fast-interval` | how often to ask what changes quickly, default `30s` |
-| `TRUENAS_METRICS_SLOW_INTERVAL` | `--slow-interval` | how often to ask the rest, default `5m` |
+| `TRUENAS_METRICS_INTERVALS` | `--intervals` | how often to ask about a part, like `snapshots=30m` |
 | `TRUENAS_METRICS_DATASET_DEPTH` | `--dataset-depth` | how deep datasets are named, default `1` |
+| `TRUENAS_METRICS_METRICS` | `--metrics` | the parts to ask about, like `pools,disks`; default all |
+| `TRUENAS_METRICS_SKIP` | `--skip` | parts to leave out, like `apps,vms` |
 | `TRUENAS_METRICS_LOG` | | log level: `WARN` (default), `INFO` or `DEBUG` |
 | `TRUENAS_METRICS_CONFIG` | `--config` | the settings file to read |
 

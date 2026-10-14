@@ -99,12 +99,13 @@ func tank() *fixed {
 			{Name: "sdh", Serial: "ZR5A0008", WWN: "5000c500e0000008", Model: "ST20000NM007D", Type: "HDD", Bus: "SCSI", Size: 20 * tib, Temperature: new(30.0)},
 		}),
 		Datasets: answered([]poll.Dataset{
-			{Name: "tank", Pool: "tank", Type: "FILESYSTEM", Used: 20 * tib, Available: 6 * tib, UsedByDataset: 200 * gib, Compression: 1.04, Snapshots: new(0)},
-			{Name: "tank/media", Pool: "tank", Type: "FILESYSTEM", Used: 15 * tib, Available: 6 * tib, UsedByDataset: 100 * gib, UsedBySnapshots: 50 * gib, Compression: 1, Snapshots: new(12)},
-			{Name: "tank/media/films", Pool: "tank", Type: "FILESYSTEM", Used: 12 * tib, Available: 6 * tib, UsedByDataset: 12 * tib, Compression: 1, Snapshots: new(30)},
-			{Name: "tank/backups", Pool: "tank", Type: "FILESYSTEM", Used: 4 * tib, Available: tib, UsedByDataset: 3 * tib, UsedBySnapshots: tib, Quota: new(int64(5 * tib)), RefQuota: new(int64(4 * tib)), Compression: 1.8, Snapshots: new(90)},
+			{Name: "tank", Pool: "tank", Type: "FILESYSTEM", Used: 20 * tib, Available: 6 * tib, UsedByDataset: 200 * gib, Compression: 1.04},
+			{Name: "tank/media", Pool: "tank", Type: "FILESYSTEM", Used: 15 * tib, Available: 6 * tib, UsedByDataset: 100 * gib, UsedBySnapshots: 50 * gib, Compression: 1},
+			{Name: "tank/media/films", Pool: "tank", Type: "FILESYSTEM", Used: 12 * tib, Available: 6 * tib, UsedByDataset: 12 * tib, Compression: 1},
+			{Name: "tank/backups", Pool: "tank", Type: "FILESYSTEM", Used: 4 * tib, Available: tib, UsedByDataset: 3 * tib, UsedBySnapshots: tib, Quota: new(int64(5 * tib)), RefQuota: new(int64(4 * tib)), Compression: 1.8},
 			{Name: "boot-pool", Pool: "boot-pool", Type: "FILESYSTEM", Used: 20 * gib, Available: 78 * gib, UsedByDataset: 96 << 10, Compression: 1.5},
 		}),
+		Snapshots: answered([]poll.SnapshotCount{{Dataset: "tank", Pool: "tank"}, {Dataset: "tank/media", Pool: "tank", Count: 12}, {Dataset: "tank/media/films", Pool: "tank", Count: 30}, {Dataset: "tank/backups", Pool: "tank", Count: 90}}),
 		Tasks: answered([]poll.Task{
 			{Kind: poll.SnapshotTask, ID: 1, Name: "tank/media", Enabled: true, LastRun: &poll.Run{OK: true, Ended: ago(time.Hour)}},
 			{Kind: poll.SnapshotTask, ID: 2, Name: "tank/backups", LastRun: &poll.Run{Failed: true, Ended: ago(26 * time.Hour)}},
@@ -121,14 +122,25 @@ func tank() *fixed {
 		Directory:    answered(poll.Directory{Type: "ACTIVEDIRECTORY", Status: "HEALTHY"}),
 		Key:          answered(poll.Key{Expires: now.Add(30 * 24 * time.Hour)}),
 
-		FastRound: poll.RoundState{Ran: true, OK: true, Took: 250 * time.Millisecond, LastSuccess: now},
-		SlowRound: poll.RoundState{Ran: true, OK: true, Took: 3 * time.Second, LastSuccess: now.Add(-time.Minute), Failures: 2},
+		Rounds: rounds(now),
 	}
 }
 
-// down is a NAS that has been asked once and did not answer.
+// rounds is every area asked about as often as it is by default and answered just now, but for the tasks: answered a minute ago, after two polls
+// that failed.
+func rounds(now time.Time) map[poll.Area]poll.RoundState {
+	out := map[poll.Area]poll.RoundState{}
+	for area, every := range poll.DefaultIntervals() {
+		out[area] = poll.RoundState{Interval: every, Ran: true, OK: true, Took: 250 * time.Millisecond, LastSuccess: now}
+	}
+	out[poll.AreaTasks] = poll.RoundState{Interval: 5 * time.Minute, Ran: true, OK: true, Took: 3 * time.Second, LastSuccess: now.Add(-time.Minute), Failures: 2}
+
+	return out
+}
+
+// down is a NAS that has been asked once about its own state and did not answer.
 func down() *fixed {
-	return &fixed{FastRound: poll.RoundState{Ran: true, Took: 30 * time.Second, Failures: 1}}
+	return &fixed{Rounds: map[poll.Area]poll.RoundState{poll.AreaSystem: {Interval: 30 * time.Second, Ran: true, Took: 30 * time.Second, Failures: 1}}}
 }
 
 // page is the page of this NAS's readings, with the datasets named to the depth given and the labels on every one.
@@ -266,8 +278,9 @@ func TestANASThatNeverAnsweredHasNoReadingsOfItsState(t *testing.T) {
 
 	got := write(t, down())
 	want := []string{
-		`truenas_poll_duration_seconds{poll="fast"} 30`,
-		`truenas_poll_failures_total{poll="fast"} 1`,
+		`truenas_poll_duration_seconds{poll="system"} 30`,
+		`truenas_poll_failures_total{poll="system"} 1`,
+		`truenas_poll_interval_seconds{poll="system"} 30`,
 		`truenas_up 0`,
 	}
 	if strings.Join(lines(got), "\n") != strings.Join(want, "\n") {
@@ -554,7 +567,7 @@ func TestTheRest(t *testing.T) {
 			`truenas_system_uptime_seconds 864000`, `truenas_system_boot_timestamp_seconds 9.458208e+08`, `truenas_system_memory_bytes 6.8719476736e+10`,
 			`truenas_system_cpu_cores 8`, `truenas_system_cpu_physical_cores 4`, `truenas_system_ecc_memory 1`, `truenas_system_clock_offset_seconds -0.02`,
 			`truenas_system_load_average{window="1m"} 0.5`, `truenas_system_load_average{window="5m"} 0.75`, `truenas_system_load_average{window="15m"} 1.25`,
-			`truenas_up 1`, `truenas_poll_duration_seconds{poll="slow"} 3`, `truenas_poll_failures_total{poll="slow"} 2`, `truenas_poll_last_success_timestamp_seconds{poll="fast"} 9.466848e+08`,
+			`truenas_up 1`, `truenas_poll_duration_seconds{poll="tasks"} 3`, `truenas_poll_failures_total{poll="tasks"} 2`, `truenas_poll_last_success_timestamp_seconds{poll="system"} 9.466848e+08`, `truenas_poll_interval_seconds{poll="snapshots"} 600`,
 		)
 
 		// a NAS joined to no directory has no directory to be healthy, a key that never expires has no end, and a faulted directory is not healthy

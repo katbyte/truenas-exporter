@@ -7,6 +7,7 @@ package poll
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,8 @@ type NAS interface {
 	// what changes when somebody changes it, or a task runs
 	Disks(ctx context.Context) ([]Disk, error)
 	Datasets(ctx context.Context) ([]Dataset, error)
+	// Snapshots is how many snapshots each dataset has, which the NAS has to go through every one of them to say.
+	Snapshots(ctx context.Context) ([]SnapshotCount, error)
 	Tasks(ctx context.Context) ([]Task, error)
 	Shares(ctx context.Context) ([]Share, error)
 	Certificates(ctx context.Context) ([]Certificate, error)
@@ -261,20 +264,25 @@ type Dataset struct {
 	RefQuota *int64
 	// Compression is how many times smaller the data is stored than it is: 1.5 for a third saved.
 	Compression float64
-	// Snapshots is how many snapshots the dataset itself has, its children's not counted; nil when the NAS was not asked or does not say.
-	Snapshots *int
 }
 
 // Depth is how far below its pool a dataset is: 0 for the pool's own, 1 for tank/media.
-func (d *Dataset) Depth() int {
-	var depth int
-	for _, c := range d.Name {
-		if c == '/' {
-			depth++
-		}
-	}
+func (d *Dataset) Depth() int { return depth(d.Name) }
 
-	return depth
+// SnapshotCount is how many snapshots one dataset has of itself, its children's not counted.
+type SnapshotCount struct {
+	// Dataset is the dataset's whole name, pool included: tank/media.
+	Dataset string
+	Pool    string
+	Count   int
+}
+
+// Depth is how far below its pool the dataset is, as for Dataset.
+func (c *SnapshotCount) Depth() int { return depth(c.Dataset) }
+
+// depth is how far below its pool the dataset of that name is.
+func depth(name string) int {
+	return strings.Count(name, "/")
 }
 
 // TaskKind is which kind of scheduled task a task is.

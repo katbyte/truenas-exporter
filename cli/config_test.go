@@ -2,8 +2,10 @@ package cli
 
 import (
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -91,11 +93,12 @@ func TestDefaults(t *testing.T) {
 	alone(t)
 
 	f := must(t)
-	if f.Listen != ":9089" || f.FastInterval != 30*time.Second || f.SlowInterval != 5*time.Minute || f.DatasetDepth != 1 {
-		t.Errorf("defaults = %s, every %s and every %s, datasets %d deep; want :9089, 30s, 5m and 1", f.Listen, f.FastInterval, f.SlowInterval, f.DatasetDepth)
+	every, err := f.intervals()
+	if err != nil || f.Listen != ":9089" || every[poll.AreaSystem] != 30*time.Second || every[poll.AreaDisks] != 5*time.Minute || every[poll.AreaSnapshots] != 10*time.Minute || f.DatasetDepth != 1 {
+		t.Errorf("defaults = %s, every %s, %s and %s (%v), datasets %d deep; want :9089, 30s, 5m, 10m and 1", f.Listen, every[poll.AreaSystem], every[poll.AreaDisks], every[poll.AreaSnapshots], err, f.DatasetDepth)
 	}
-	if f.Server != "" || f.Username != "" || f.APIKey != "" || f.CertificateFile != "" || f.CAFile != "" || f.SkipCertificateCheck || f.SendKeyUnchecked || f.Labels != "" {
-		t.Errorf("a NAS, a certificate or a label is set with nothing given: %+v", f)
+	if f.Server != "" || f.Username != "" || f.APIKey != "" || f.CertificateFile != "" || f.CAFile != "" || f.SkipCertificateCheck || f.SendKeyUnchecked || f.Labels != "" || f.Metrics != "" || f.Skip != "" || f.Intervals != "" {
+		t.Errorf("a NAS, a certificate, a label, a part of the NAS to leave out or an interval is set with nothing given: %+v", f)
 	}
 }
 
@@ -112,13 +115,14 @@ func TestEveryFlagHasAnEnvironmentVariable(t *testing.T) {
 	t.Setenv("TRUENAS_METRICS_SEND_KEY_UNCHECKED", "true")
 	t.Setenv("TRUENAS_METRICS_LISTEN", "127.0.0.1:9000")
 	t.Setenv("TRUENAS_METRICS_LABELS", "hostname=nas")
-	t.Setenv("TRUENAS_METRICS_FAST_INTERVAL", "45s")
-	t.Setenv("TRUENAS_METRICS_SLOW_INTERVAL", "10m")
 	t.Setenv("TRUENAS_METRICS_DATASET_DEPTH", "3")
+	t.Setenv("TRUENAS_METRICS_METRICS", "pools,disks")
+	t.Setenv("TRUENAS_METRICS_SKIP", "disks")
+	t.Setenv("TRUENAS_METRICS_INTERVALS", "snapshots=30m")
 
 	want := FlagData{
 		Server: testServer, Username: testUser, APIKey: testKey, CertificateFile: "/etc/nas.pem", CAFile: "/etc/authority.pem", SkipCertificateCheck: true, SendKeyUnchecked: true,
-		Listen: "127.0.0.1:9000", Labels: "hostname=nas", FastInterval: 45 * time.Second, SlowInterval: 10 * time.Minute, DatasetDepth: 3,
+		Listen: "127.0.0.1:9000", Labels: "hostname=nas", DatasetDepth: 3, Metrics: "pools,disks", Skip: "disks", Intervals: "snapshots=30m",
 	}
 	if got := *must(t); got != want {
 		t.Errorf("from the environment = %+v, want %+v", got, want)
@@ -138,24 +142,24 @@ func TestEveryFlagHasAnEnvironmentVariable(t *testing.T) {
 // A flag beats the environment, which beats a settings file: a container overrides what an image holds, and a command line overrides both.
 func TestFlagThenEnvironmentThenFile(t *testing.T) {
 	home, _ := alone(t)
-	write(t, home, ".truenas-metrics", "SERVER=from-file\nAPI_KEY=from-file\nFAST_INTERVAL=45s\nSKIP_CERTIFICATE_CHECK=true\nDATASET_DEPTH=2\nLISTEN=:9000\n")
+	write(t, home, ".truenas-metrics", "SERVER=from-file\nAPI_KEY=from-file\nINTERVALS=snapshots=30m\nSKIP_CERTIFICATE_CHECK=true\nDATASET_DEPTH=2\nLISTEN=:9000\n")
 
 	f := must(t)
-	if f.Server != "from-file" || f.APIKey != "from-file" || f.FastInterval != 45*time.Second || !f.SkipCertificateCheck || f.DatasetDepth != 2 || f.Listen != ":9000" {
+	if f.Server != "from-file" || f.APIKey != "from-file" || f.Intervals != "snapshots=30m" || !f.SkipCertificateCheck || f.DatasetDepth != 2 || f.Listen != ":9000" {
 		t.Errorf("from the file = %+v, want every setting it holds, the ones of several words included", f)
 	}
 
 	viper.Reset()
 	t.Setenv("TRUENAS_METRICS_SERVER", "from-env")
-	t.Setenv("TRUENAS_METRICS_FAST_INTERVAL", "20s")
+	t.Setenv("TRUENAS_METRICS_INTERVALS", "apps=1m")
 	f = must(t)
-	if f.Server != "from-env" || f.FastInterval != 20*time.Second || f.APIKey != "from-file" {
+	if f.Server != "from-env" || f.Intervals != "apps=1m" || f.APIKey != "from-file" {
 		t.Errorf("with the environment = %+v, want it over the file, and the file for the rest", f)
 	}
 
 	viper.Reset()
-	f = must(t, "--server", "from-flag", "--fast-interval", "5s")
-	if f.Server != "from-flag" || f.FastInterval != 5*time.Second {
+	f = must(t, "--server", "from-flag", "--intervals", "system=10s")
+	if f.Server != "from-flag" || f.Intervals != "system=10s" {
 		t.Errorf("with flags = %+v, want them over the environment", f)
 	}
 }
@@ -256,12 +260,85 @@ func TestConnection(t *testing.T) {
 	}
 }
 
-// The poller is made with the connection the settings describe. One that cannot be made is said, and an interval of nothing is refused with the
-// connection closed again, since nothing will use it.
+// --metrics names the parts of the NAS to ask about, every one when it names none, and --skip takes some away from them, in any case and with
+// spaces about the commas.
+func TestSkipped(t *testing.T) {
+	t.Parallel()
+
+	allBut := func(kept ...poll.Area) []poll.Area {
+		return slices.DeleteFunc(slices.Clone(poll.Areas), func(a poll.Area) bool { return slices.Contains(kept, a) })
+	}
+
+	for _, c := range []struct {
+		metrics, skip string
+		want          []poll.Area
+	}{
+		{"", "", nil},
+		{"", "apps, VMS", []poll.Area{poll.AreaApps, poll.AreaVMs}},
+		{"pools,disks", "", allBut(poll.AreaPools, poll.AreaDisks)},
+		{"pools, Disks", "disks", allBut(poll.AreaPools)},
+		{",", " , ", nil},
+	} {
+		f := FlagData{Metrics: c.metrics, Skip: c.skip}
+
+		got, err := f.skipped()
+		if err != nil || !slices.Equal(got, c.want) {
+			t.Errorf("--metrics %q --skip %q left out %v (%v), want %v", c.metrics, c.skip, got, err, c.want)
+		}
+	}
+}
+
+// A word that names no part of the NAS is refused, naming the setting it was in and the parts there are. The NAS's own state is not one, since it
+// is always asked, and a part is named as the page names it: apps, not app.
+func TestSkippedRefusesAWordThatNamesNoPart(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct{ metrics, skip, names, word string }{
+		{"", "apps,smart", "TRUENAS_METRICS_SKIP", `"smart"`},
+		{"system", "", "TRUENAS_METRICS_METRICS", `"system"`},
+		{"app,disks", "", "TRUENAS_METRICS_METRICS", `"app"`},
+	} {
+		f := FlagData{Metrics: c.metrics, Skip: c.skip}
+
+		if _, err := f.skipped(); err == nil || !strings.Contains(err.Error(), c.names) || !strings.Contains(err.Error(), c.word) || !strings.Contains(err.Error(), "key-expiry") {
+			t.Errorf("--metrics %q --skip %q = %v, want an error naming %s, %s and the parts there are", c.metrics, c.skip, err, c.names, c.word)
+		}
+	}
+}
+
+// --intervals changes how often the parts it names are asked about, in any case and with spaces about the commas, and leaves the rest as they are by
+// default. The NAS's own state is one of them. A part, or a length of time, that cannot be read is refused, naming the setting.
+func TestIntervals(t *testing.T) {
+	t.Parallel()
+
+	f := FlagData{Intervals: "snapshots=30m, Apps = 1m,,system=10s"}
+
+	got, err := f.intervals()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := poll.DefaultIntervals()
+	want[poll.AreaSnapshots], want[poll.AreaApps], want[poll.AreaSystem] = 30*time.Minute, time.Minute, 10*time.Second
+	if !maps.Equal(got, want) {
+		t.Errorf("--intervals %q = %v, want %v", f.Intervals, got, want)
+	}
+
+	for _, bad := range []string{"smart=1m", "snapshots", "snapshots=soon", "snapshots=0s", "snapshots=-1m", "=1m"} {
+		f := FlagData{Intervals: bad}
+
+		if _, err := f.intervals(); err == nil || !strings.Contains(err.Error(), "TRUENAS_METRICS_INTERVALS") {
+			t.Errorf("--intervals %q = %v, want an error naming the setting", bad, err)
+		}
+	}
+}
+
+// The poller is made with the connection the settings describe. One that cannot be made is said, and an interval that cannot be used is refused
+// before anything is connected to.
 func TestPoller(t *testing.T) {
 	t.Parallel()
 
-	f := FlagData{Server: testServer, Username: testUser, APIKey: testKey, FastInterval: time.Second, SlowInterval: time.Minute}
+	f := FlagData{Server: testServer, Username: testUser, APIKey: testKey}
 
 	var made []connection
 	var closed int
@@ -287,8 +364,8 @@ func TestPoller(t *testing.T) {
 		t.Errorf("a connection that cannot be made = %v, want its error", err)
 	}
 
-	f.FastInterval = 0
-	if _, _, err := f.poller(connect); err == nil || !strings.Contains(err.Error(), "TRUENAS_METRICS_FAST_INTERVAL") || closed != 2 {
-		t.Errorf("an interval of nothing = %v with the connection closed %d times; want it refused naming the setting, and the connection closed", err, closed)
+	f.Intervals = "system=0s"
+	if _, _, err := f.poller(connect); err == nil || !strings.Contains(err.Error(), "TRUENAS_METRICS_INTERVALS") || len(made) != 1 {
+		t.Errorf("an interval of nothing = %v after %d connections; want it refused naming the setting, before connecting", err, len(made))
 	}
 }

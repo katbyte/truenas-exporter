@@ -4,6 +4,7 @@ Alerts and queries to start from. Every reading is in [readings.md](readings.md)
 
 ```promql
 truenas_up == 0                                                    # the NAS is not answering
+time() - truenas_poll_last_success_timestamp_seconds > 3 * truenas_poll_interval_seconds   # a part of the NAS has gone unanswered three polls running
 truenas_pool_healthy == 0                                          # a pool is not healthy
 truenas_pool_device_status{status!="ONLINE"}                       # a disk in a pool is not online
 truenas_pool_device_read_errors + truenas_pool_device_write_errors + truenas_pool_device_checksum_errors > 0   # errors against a disk
@@ -29,4 +30,4 @@ truenas_disk_temperature_celsius * on (serial) group_left (model, pool) truenas_
 
 ## How often to scrape
 
-Scraping more often than the NAS is asked gains nothing. The page only changes when a poll comes back: every 30 seconds for what changes quickly, every 5 minutes for the rest.
+Scraping more often than the NAS is asked gains nothing. The page only changes when a poll comes back: every 30 seconds for what changes quickly, every 5 or 10 minutes for the rest, or as `--intervals` says.

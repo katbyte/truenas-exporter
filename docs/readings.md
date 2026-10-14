@@ -6,11 +6,14 @@ Every reading starts `truenas_`. Statuses, states and levels are spelled as True
 
 | Reading | Labels | What it says |
 |---|---|---|
-| `truenas_up` | | 1 when the last quick poll was answered in full |
-| `truenas_poll_duration_seconds` | `poll` | how long the last poll took, `fast` or `slow` |
-| `truenas_poll_last_success_timestamp_seconds` | `poll` | when a poll last succeeded |
-| `truenas_poll_failures_total` | `poll` | failed polls since start |
+| `truenas_up` | | 1 when the NAS answered the last time it was asked about its own state |
+| `truenas_poll_interval_seconds` | `poll` | how often each part is asked about |
+| `truenas_poll_duration_seconds` | `poll` | how long the last poll of each part took |
+| `truenas_poll_last_success_timestamp_seconds` | `poll` | when each part was last answered |
+| `truenas_poll_failures_total` | `poll` | failed polls of each part since start |
 | `truenas_metrics_build_info` | `version`, `commit`, `goversion` | always 1; the version running |
+
+`poll` is the part of the NAS, named as [the settings](settings.md#what-the-nas-is-asked-about-and-how-often) name it: `system`, `pools`, `snapshots` and the rest.
 
 ## The NAS
 
@@ -99,6 +102,8 @@ truenas_disk_temperature_celsius * on (serial) group_left (model, pool) truenas_
 
 Datasets are named one level below the pool, since deeper names are often people's. `TRUENAS_METRICS_DATASET_DEPTH` changes that; `0` names only the pool's own. The two counts always include every dataset.
 
+Snapshot counts are asked for apart from the rest, every 10 minutes unless `--intervals` says otherwise: counting them has the NAS go through every snapshot.
+
 ## Alerts
 
 | Reading | Labels | What it says |
@@ -166,6 +171,8 @@ These counts are written as 0 when there is nothing to count, so an alert has so
 
 The rest appear only when there is something to say: `truenas_alerts_by_class`, `truenas_jobs_running`, readings of each app, virtual machine, task, dataset and disk, a scan's details, a quota, a temperature.
 
+A part of the NAS left out with `--metrics` or `--skip` has nothing on the page, its counts included. See [settings](settings.md#what-the-nas-is-asked-about-and-how-often).
+
 A state a newer TrueNAS adds is written under its own name. The page has no Go runtime or process readings.
 
 ## Labels of your own
@@ -186,6 +193,6 @@ A scraper replaces `job` and `instance` with its own unless told `honor_labels: 
 
 ## When the NAS stops answering
 
-A scrape is answered from memory and never waits on the NAS. If a poll fails, `truenas_up` goes to 0. Readings stay for three missed polls, then drop off the page. One question failing does not cost the others their answers.
+A scrape is answered from memory and never waits on the NAS. If the NAS stops answering, `truenas_up` goes to 0. One part failing leaves `truenas_up` at 1 and shows in that part's `truenas_poll_failures_total`. Each part's readings stay for three of its intervals, then drop off the page. One question failing does not cost the others their answers.
 
 A method this TrueNAS does not have is logged once, and its readings are left off.

@@ -35,7 +35,7 @@ var (
 // layout package gives them. make testacc asks its test environment for such a NAS with this same variable, which is how the suite knows.
 var furnished = os.Getenv("TRUENAS_TEST_FURNISHED") == "1"
 
-// patience is how long the page is given to show what a round of questions brought back.
+// patience is how long the page is given to show what a poll of the NAS brought back.
 const patience = 30 * time.Second
 
 // live skips a test when no NAS is named.
@@ -86,9 +86,9 @@ func printed(t *testing.T) (string, error) {
 	return out.String(), err
 }
 
-// serving starts the program serving on a port of its own, asking the NAS that often, and gives back where it is. It is told to stop when the test
+// serving starts the program serving on a port of its own, asking about the parts of the NAS as often as intervals says, and gives back where it is. It is told to stop when the test
 // ends, and the test fails if it does not stop cleanly.
-func serving(t *testing.T, fast, slow time.Duration) string {
+func serving(t *testing.T, intervals string) string {
 	t.Helper()
 
 	deployed(t)
@@ -106,7 +106,7 @@ func serving(t *testing.T, fast, slow time.Duration) string {
 	}
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
-	cmd.SetArgs([]string{"serve", "--listen", at, "--fast-interval", fast.String(), "--slow-interval", slow.String()})
+	cmd.SetArgs([]string{"serve", "--listen", at, "--intervals", intervals})
 
 	ctx, stop := context.WithCancel(context.WithoutCancel(t.Context()))
 	stopped := make(chan error, 1)

@@ -35,9 +35,10 @@ services:
       - "TRUENAS_METRICS_LOG=INFO"
       # - "TRUENAS_METRICS_CA_FILE=/etc/truenas-metrics/ca.pem"  # in place of the certificate, for a NAS given one with its own name on it
       # - "TRUENAS_METRICS_LABELS=hostname=nas"                  # labels for every reading, when whatever scrapes the page adds none of its own
-      # - "TRUENAS_METRICS_FAST_INTERVAL=30s"                    # how often pools, scans, alerts, services, jobs and apps are read
-      # - "TRUENAS_METRICS_SLOW_INTERVAL=5m"                     # how often disks, datasets, tasks, shares and certificates are read
       # - "TRUENAS_METRICS_DATASET_DEPTH=1"                      # how far below its pool a dataset may be and still be named
+      # - "TRUENAS_METRICS_METRICS=pools,disks"                  # the parts of the NAS to ask about, all of them unless set; docs/settings.md lists them
+      # - "TRUENAS_METRICS_SKIP=apps,vms"                        # parts of the NAS to leave out of those
+      # - "TRUENAS_METRICS_INTERVALS=snapshots=30m"              # how often to ask about a part, where its default will not do
     logging:
       options:
         max-size: 100m

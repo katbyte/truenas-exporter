@@ -5,10 +5,8 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/katbyte/go-kt/version"
-	"github.com/katbyte/truenas-metrics/lib/poll"
 	"github.com/spf13/cobra"
 )
 
@@ -66,18 +64,14 @@ reported.`,
 				return err
 			}
 
-			var wg sync.WaitGroup
-			for _, round := range poll.Rounds {
-				wg.Go(func() { p.Poll(cmd.Context(), round) })
-			}
-			wg.Wait()
+			p.PollAll(cmd.Context())
 
 			if err := page.Write(cmd.OutOrStdout()); err != nil {
 				return err
 			}
 
 			// the page is printed either way, with what a NAS that did not answer looks like on it; what went wrong is in the log
-			if s := p.State(); !s.FastRound.OK || !s.SlowRound.OK {
+			if s := p.State(); !s.Answered() {
 				return errors.New("the NAS did not answer every question")
 			}
 

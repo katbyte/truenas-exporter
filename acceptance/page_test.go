@@ -8,11 +8,11 @@ import (
 	"math"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/katbyte/go-kt/pmetrics"
 	"github.com/katbyte/truenas-mcp/acceptance/layout"
 	"github.com/katbyte/truenas-mcp/sdk/truenasrpc"
+	"github.com/katbyte/truenas-metrics/lib/poll"
 	"github.com/prometheus/client_golang/prometheus/testutil/promlint"
 )
 
@@ -52,9 +52,9 @@ func printAnswersEveryQuestion(t *testing.T) {
 		}
 	}
 
-	for _, round := range []string{"fast", "slow"} {
-		if got, ok := one(page, "truenas_poll_failures_total", map[string]string{"poll": round}); !ok || got != 0 {
-			t.Errorf("the %s round failed %v times (one reading: %t), want it answered in full the first time", round, got, ok)
+	for _, area := range poll.Every {
+		if got, ok := one(page, "truenas_poll_failures_total", map[string]string{"poll": string(area)}); !ok || got != 0 {
+			t.Errorf("asking about %s failed %v times (one reading: %t), want it answered in full the first time", area, got, ok)
 		}
 	}
 
@@ -285,6 +285,11 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 		if got, ok := one(page, "truenas_datasets", map[string]string{"pool": pool}); !ok || int(got) != want {
 			t.Errorf("truenas_datasets of %s = %v, want %d", pool, got, want)
 		}
+
+		// snapshot counts are asked for apart from the datasets, and every pool with a dataset has a count of its snapshots, if only of none
+		if _, ok := one(page, "truenas_snapshots", map[string]string{"pool": pool}); !ok {
+			t.Errorf("pool %s has no count of its snapshots on the page", pool)
+		}
 	}
 
 	for _, service := range nas.Services {
@@ -425,6 +430,11 @@ func TestTheFurnishedNASIsOnThePage(t *testing.T) {
 		}
 	}
 
+	// the snapshot task that ran left a snapshot of its dataset behind it, counted apart from the dataset itself
+	if got, ok := one(page, "truenas_dataset_snapshots", map[string]string{"dataset": layout.TaskDataset}); !ok || got < 1 {
+		t.Errorf("truenas_dataset_snapshots of %s = %v (one reading: %t), want the snapshot its task took", layout.TaskDataset, got, ok)
+	}
+
 	// the copy that failed left an alert behind it, which is the one alert there is a kind to name for
 	if got, ok := one(page, "truenas_alerts_by_class", map[string]string{"class": "RsyncFailed"}); !ok || got < 1 {
 		t.Errorf("truenas_alerts_by_class of RsyncFailed = %v (one reading: %t), want the alert the failed copy raised", got, ok)
@@ -452,40 +462,40 @@ func TestServeKeepsThePageFresh(t *testing.T) {
 func serveKeepsThePageFresh(t *testing.T) {
 	t.Helper()
 
-	at := serving(t, 2*time.Second, time.Minute)
+	at := serving(t, "system=2s")
 
 	if got := strings.TrimSpace(get(t, at+pmetrics.HealthPath)); got != "ok" {
 		t.Errorf("%s = %q, want ok", pmetrics.HealthPath, got)
 	}
 
-	answered := func(page, round string) (float64, bool) {
-		return one(page, "truenas_poll_last_success_timestamp_seconds", map[string]string{"poll": round})
+	answered := func(page, area string) (float64, bool) {
+		return one(page, "truenas_poll_last_success_timestamp_seconds", map[string]string{"poll": area})
 	}
 
 	page := until(t, at, func(page string) bool {
 		up, _ := one(page, "truenas_up", nil)
-		_, fast := answered(page, "fast")
-		_, slow := answered(page, "slow")
+		_, system := answered(page, "system")
+		_, snapshots := answered(page, "snapshots")
 
-		return up == 1 && fast && slow
+		return up == 1 && system && snapshots
 	})
 	if strings.Contains(page, key) {
 		t.Fatal("the page holds the key")
 	}
 
-	first, ok := answered(page, "fast")
+	first, ok := answered(page, "system")
 	if up, _ := one(page, "truenas_up", nil); up != 1 || !ok {
-		t.Fatalf("the page never said the NAS was up with both rounds answered:\n%s", page)
+		t.Fatalf("the page never said the NAS was up with its own state and its snapshots answered:\n%s", page)
 	}
 
 	page = until(t, at, func(page string) bool {
-		again, _ := answered(page, "fast")
+		again, _ := answered(page, "system")
 		return again > first
 	})
-	if again, _ := answered(page, "fast"); again <= first {
-		t.Errorf("the fast round was not asked again within %s of being answered", patience)
+	if again, _ := answered(page, "system"); again <= first {
+		t.Errorf("the NAS was not asked about its own state again within %s of being answered", patience)
 	}
-	if failures, _ := one(page, "truenas_poll_failures_total", map[string]string{"poll": "fast"}); failures != 0 {
-		t.Errorf("the fast round failed %v times while serving", failures)
+	if failures, _ := one(page, "truenas_poll_failures_total", map[string]string{"poll": "system"}); failures != 0 {
+		t.Errorf("asking about the NAS's own state failed %v times while serving", failures)
 	}
 }

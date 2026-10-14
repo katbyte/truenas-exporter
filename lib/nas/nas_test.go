@@ -412,8 +412,7 @@ func TestDisks(t *testing.T) {
 	same(t, "a disk with little to say", got, []poll.Disk{{Name: "sdz", Bus: "UNKNOWN", Slot: &poll.Slot{Enclosure: 1, Slot: 12}}})
 }
 
-// Every dataset as one flat list, with only the properties the page reports asked for and a count of each one's snapshots. No quota is no
-// quota, not one of 0.
+// Every dataset as one flat list, with only the properties the page reports asked for. No quota is no quota, not one of 0.
 func TestDatasets(t *testing.T) {
 	t.Parallel()
 
@@ -426,8 +425,8 @@ func TestDatasets(t *testing.T) {
 		t.Fatalf("%d datasets, want 6", len(got))
 	}
 
-	same(t, "the pool's own dataset", got[0], poll.Dataset{Name: "tank", Pool: "tank", Type: "FILESYSTEM", Used: 566789391307776, Available: 274593752252000, UsedByDataset: 141697347826944, UsedBySnapshots: 35424336956736, Compression: 1.04, Snapshots: new(0)})
-	if d := got[1]; d.Name != "tank/dataset-5" || d.Depth() != 1 || d.Quota != nil || d.RefQuota != nil || d.Snapshots == nil || *d.Snapshots != 12 {
+	same(t, "the pool's own dataset", got[0], poll.Dataset{Name: "tank", Pool: "tank", Type: "FILESYSTEM", Used: 566789391307776, Available: 274593752252000, UsedByDataset: 141697347826944, UsedBySnapshots: 35424336956736, Compression: 1.04})
+	if d := got[1]; d.Name != "tank/dataset-5" || d.Depth() != 1 || d.Quota != nil || d.RefQuota != nil {
 		t.Errorf("a dataset one deep = %+v", d)
 	}
 	if d := got[5]; d.Depth() != 2 || d.Quota == nil || *d.Quota != 21990232555520 || d.RefQuota != nil {
@@ -436,9 +435,40 @@ func TestDatasets(t *testing.T) {
 
 	// without the datasets under each, with a filter every dataset passes so the NAS goes below the pools, and of each only what is read
 	asked, _ := json.Marshal(c.asked["pool.dataset.query"])
-	if want := `[[["type","in",["FILESYSTEM","VOLUME"]]],{"extra":{"properties":["used","available","usedbydataset","usedbysnapshots","quota","refquota","compressratio"],"retrieve_children":false,"snapshots_count":true},"select":["name","pool","type","used.parsed","available.parsed","usedbydataset.parsed","usedbysnapshots.parsed","quota.parsed","refquota.parsed","compressratio.parsed","snapshot_count"]}]`; string(asked) != want {
+	if want := `[[["type","in",["FILESYSTEM","VOLUME"]]],{"extra":{"properties":["used","available","usedbydataset","usedbysnapshots","quota","refquota","compressratio"],"retrieve_children":false},"select":["name","pool","type","used.parsed","available.parsed","usedbydataset.parsed","usedbysnapshots.parsed","quota.parsed","refquota.parsed","compressratio.parsed"]}]`; string(asked) != want {
 		t.Errorf("pool.dataset.query was asked with\n%s\nwant\n%s", asked, want)
 	}
+}
+
+// How many snapshots every dataset has, asked for as datasets are but with none of their properties, since counting is what costs the NAS. A
+// dataset the NAS gives no count for is left out rather than counted as having none.
+func TestSnapshots(t *testing.T) {
+	t.Parallel()
+
+	c := &canned{}
+	got, err := nas.New(c, nas.Options{}).Snapshots(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	same(t, "the snapshot counts", got, []poll.SnapshotCount{
+		{Dataset: "tank", Pool: "tank"},
+		{Dataset: "tank/dataset-5", Pool: "tank", Count: 12},
+		{Dataset: "tank/dataset-7", Pool: "tank", Count: 24},
+		{Dataset: "tank/dataset-6", Pool: "tank", Count: 36},
+		{Dataset: "tank/dataset-7/dataset-17", Pool: "tank", Count: 48},
+		{Dataset: "tank/dataset-7/dataset-18", Pool: "tank", Count: 60},
+	})
+
+	asked, _ := json.Marshal(c.asked["pool.dataset.query"])
+	if want := `[[["type","in",["FILESYSTEM","VOLUME"]]],{"extra":{"properties":[],"retrieve_children":false,"snapshots_count":true},"select":["name","pool","snapshot_count"]}]`; string(asked) != want {
+		t.Errorf("pool.dataset.query was asked with\n%s\nwant\n%s", asked, want)
+	}
+
+	got, err = of(&canned{instead: map[string]string{"pool.dataset.query": `[{"name": "tank", "pool": "tank", "snapshot_count": 3}, {"name": "tank/media", "pool": "tank"}]`}}).Snapshots(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	same(t, "a dataset with no count", got, []poll.SnapshotCount{{Dataset: "tank", Pool: "tank", Count: 3}})
 }
 
 // A task of every kind, and how each last went: the three the NAS runs as jobs by their job, snapshots and replication by the state the NAS keeps
@@ -691,17 +721,15 @@ func TestEveryQuestionOnlyReads(t *testing.T) {
 	c := &canned{}
 	n := nas.New(c, nas.Options{})
 
-	// the poller is what asks every question, so it is what is run: one round of each
-	p, err := poll.New(n, poll.Intervals{Fast: time.Minute, Slow: time.Minute})
+	// the poller is what asks every question, so it is what is run: one poll of every part of the NAS
+	p, err := poll.New(n, poll.DefaultIntervals())
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, round := range poll.Rounds {
-		p.Poll(t.Context(), round)
-	}
+	p.PollAll(t.Context())
 
-	if s := p.State(); !s.FastRound.OK || !s.SlowRound.OK {
-		t.Fatalf("a round against the saved answers failed: fast %+v, slow %+v", s.FastRound, s.SlowRound)
+	if s := p.State(); !s.Answered() {
+		t.Fatalf("a poll against the saved answers failed: %+v", s.Rounds)
 	}
 
 	same(t, "the methods called", c.methods(), reads)

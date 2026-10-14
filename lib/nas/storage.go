@@ -50,16 +50,16 @@ func (n *NAS) Disks(ctx context.Context) ([]poll.Disk, error) {
 var datasetProperties = []string{"used", "available", "usedbydataset", "usedbysnapshots", "quota", "refquota", "compressratio"}
 
 // datasetFields is what is read of a dataset: of each property, only the value the NAS has made a number of.
-var datasetFields = []any{"name", "pool", "type", "used.parsed", "available.parsed", "usedbydataset.parsed", "usedbysnapshots.parsed", "quota.parsed", "refquota.parsed", "compressratio.parsed", "snapshot_count"}
+var datasetFields = []any{"name", "pool", "type", "used.parsed", "available.parsed", "usedbydataset.parsed", "usedbysnapshots.parsed", "quota.parsed", "refquota.parsed", "compressratio.parsed"}
 
 // everyDataset is a filter every dataset passes. Asked for datasets without the ones under each, the NAS goes below the pools only when it is
 // given a filter.
 var everyDataset = []any{[]any{"type", "in", []string{"FILESYSTEM", "VOLUME"}}}
 
-// Datasets asks the NAS for every dataset, however deep, as one flat list with how many snapshots each has. Each is asked for without the ones
-// under it: with them, every row holds a copy of the whole tree below, and the answer grows with how deep the tree goes.
+// Datasets asks the NAS for every dataset, however deep, as one flat list. Each is asked for without the ones under it: with them, every row holds
+// a copy of the whole tree below, and the answer grows with how deep the tree goes.
 func (n *NAS) Datasets(ctx context.Context) ([]poll.Dataset, error) {
-	datasets, err := n.api.PoolDataset.Query(ctx, everyDataset, truenas.PoolDatasetQueryOptions{Select: datasetFields, Extra: map[string]any{"retrieve_children": false, "properties": datasetProperties, "snapshots_count": true}})
+	datasets, err := n.api.PoolDataset.Query(ctx, everyDataset, truenas.PoolDatasetQueryOptions{Select: datasetFields, Extra: map[string]any{"retrieve_children": false, "properties": datasetProperties}})
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +79,25 @@ func (n *NAS) Datasets(ctx context.Context) ([]poll.Dataset, error) {
 			Quota:           limit(pointer.From(d.Quota).Parsed),
 			RefQuota:        limit(pointer.From(d.Refquota).Parsed),
 			Compression:     compression,
-			Snapshots:       d.SnapshotCount,
 		})
+	}
+
+	return out, nil
+}
+
+// Snapshots asks the NAS how many snapshots every dataset has, asked for as datasets are but with none of their properties. A dataset the NAS
+// gives no count for is left out.
+func (n *NAS) Snapshots(ctx context.Context) ([]poll.SnapshotCount, error) {
+	datasets, err := n.api.PoolDataset.Query(ctx, everyDataset, truenas.PoolDatasetQueryOptions{Select: []any{"name", "pool", "snapshot_count"}, Extra: map[string]any{"retrieve_children": false, "properties": []string{}, "snapshots_count": true}})
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]poll.SnapshotCount, 0, len(datasets.Answer))
+	for _, d := range datasets.Answer {
+		if d.SnapshotCount != nil {
+			out = append(out, poll.SnapshotCount{Dataset: d.Name, Pool: d.Pool, Count: *d.SnapshotCount})
+		}
 	}
 
 	return out, nil

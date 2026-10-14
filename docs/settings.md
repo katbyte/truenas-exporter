@@ -61,10 +61,41 @@ A flag or an environment variable wins over the file.
 
 `--config` (or `TRUENAS_METRICS_CONFIG`) names the file to read. It is then the only one read. A named file that is not there stops the program from starting.
 
-## How often the NAS is asked
+## What the NAS is asked about, and how often
 
-- **Every 30 seconds** (`--fast-interval`): the NAS's state, pools and their scans, alerts, services, jobs, apps, virtual machines and connected clients.
-- **Every 5 minutes** (`--slow-interval`): disks, datasets, tasks, shares, certificates, network interfaces, updates, the directory and the API key.
+Each part of the NAS below is asked about on its own schedule. Three settings change that, each a list with commas between:
+
+- **`--metrics`** names the parts to ask about, like `pools,disks`. Left unset, it is all of them.
+- **`--skip`** leaves parts out of those, like `apps,vms`.
+- **`--intervals`** says how often to ask about a part, like `snapshots=30m,apps=1m`. The rest keep the times below.
+
+A part left out is never asked about and has nothing on the page.
+
+| Part | What it covers | Every |
+|---|---|---|
+| `system` | the NAS's own state: version, uptime, load | 30s |
+| `pools` | pools and the boot pool, with their scans, vdevs and the disks in them | 30s |
+| `disks` | every disk, its size and temperature | 5m |
+| `datasets` | datasets and their space | 5m |
+| `snapshots` | how many snapshots each dataset has | 10m |
+| `alerts` | alerts | 30s |
+| `services` | services | 30s |
+| `jobs` | jobs running or waiting | 30s |
+| `apps` | apps and the apps service | 30s |
+| `vms` | virtual machines | 30s |
+| `shares` | shares | 5m |
+| `clients` | clients connected to the shares | 30s |
+| `tasks` | scheduled tasks | 5m |
+| `updates` | whether a newer TrueNAS is out | 5m |
+| `interfaces` | network interfaces | 5m |
+| `certificates` | when certificates expire | 5m |
+| `directory` | the directory service | 5m |
+| `key-expiry` | when the program's API key expires | 5m |
+
+- `system` is always asked about, since it is what says the NAS is answering. It can be given its own time, but not left out.
+- Counting snapshots has the NAS go through every one, so it is asked least often.
+- A word that names no part, or a time that cannot be read, stops the program at start.
+- Pools give each disk's serial number only while `disks` is asked, and disks give their pool only while `pools` is.
 
 ## Logging
 

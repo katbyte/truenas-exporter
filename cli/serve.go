@@ -16,11 +16,15 @@ func serveCmd(connect connector) *cobra.Command {
 		Long: `Asks the NAS for its state on a schedule and serves the last answers at /metrics in the
 Prometheus text format, with a health probe at /healthz.
 
-A scrape is answered from memory and never waits on the NAS. Pools and their scans, alerts,
-services, jobs, apps and the NAS's own state are read every --fast-interval; disks,
-datasets, tasks, shares, certificates and updates every --slow-interval. A NAS that stops
-answering is reported as truenas_up 0, and what it last said is served for three intervals
-and then left off.
+A scrape is answered from memory and never waits on the NAS. Each part of the NAS is asked
+about on its own schedule: its own state, pools, alerts, services, jobs, apps, virtual
+machines and connected clients every 30 seconds, snapshot counts every 10 minutes, and the
+rest every 5, unless --intervals says otherwise. A NAS that stops answering is reported as
+truenas_up 0, and what it last said of each part is served for three of that part's
+intervals and then left off.
+
+--metrics names the parts of the NAS to ask about, every one unless set, and --skip leaves
+some of those out.
 
 The NAS is reached over TLS and no other way: it revokes a key sent in the clear. A NAS as it
 comes shows a certificate it made itself, made out to localhost, so say which one is its:
@@ -39,8 +43,8 @@ Every setting is also an environment variable: TRUENAS_METRICS_SERVER,
 TRUENAS_METRICS_USERNAME and TRUENAS_METRICS_API_KEY, TRUENAS_METRICS_CERTIFICATE_FILE,
 TRUENAS_METRICS_CA_FILE, TRUENAS_METRICS_SKIP_CERTIFICATE_CHECK,
 TRUENAS_METRICS_SEND_KEY_UNCHECKED, TRUENAS_METRICS_LISTEN, TRUENAS_METRICS_LABELS,
-TRUENAS_METRICS_FAST_INTERVAL, TRUENAS_METRICS_SLOW_INTERVAL and
-TRUENAS_METRICS_DATASET_DEPTH.`,
+TRUENAS_METRICS_DATASET_DEPTH, TRUENAS_METRICS_METRICS, TRUENAS_METRICS_SKIP and
+TRUENAS_METRICS_INTERVALS.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {

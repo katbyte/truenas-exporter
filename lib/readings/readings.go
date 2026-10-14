@@ -29,10 +29,11 @@ func reading(name, help string, labels ...string) *prometheus.Desc {
 }
 
 var (
-	up              = reading("up", "Whether the NAS answered every question the last time it was asked the ones that change by the minute (1) or not (0).")
-	pollDuration    = reading("poll_duration_seconds", "How long the last poll of the NAS took, by which: fast or slow.", "poll")
-	pollLastSuccess = reading("poll_last_success_timestamp_seconds", "When a poll of the NAS was last answered in full, in seconds since 1970.", "poll")
-	pollFailures    = reading("poll_failures_total", "How many polls of the NAS have failed since truenas-metrics started.", "poll")
+	up              = reading("up", "Whether the NAS answered the last time it was asked about its own state (1) or not (0).")
+	pollInterval    = reading("poll_interval_seconds", "How often each part of the NAS is asked about.", "poll")
+	pollDuration    = reading("poll_duration_seconds", "How long the last poll of each part of the NAS took.", "poll")
+	pollLastSuccess = reading("poll_last_success_timestamp_seconds", "When each part of the NAS was last answered in full, in seconds since 1970.", "poll")
+	pollFailures    = reading("poll_failures_total", "How many polls of each part of the NAS have failed since truenas-metrics started.", "poll")
 
 	systemInfo        = reading("system_info", "Always 1, with the version of TrueNAS and the machine it runs on.", "version", "product", "manufacturer", "cpu")
 	systemState       = reading("system_state", "Whether the NAS is in each state (1) or not (0): BOOTING, READY or SHUTTING_DOWN.", "state")
@@ -187,6 +188,7 @@ func (r *Readings) Collect(ch chan<- prometheus.Metric) {
 	w.pools(&s)
 	w.disks(&s)
 	w.datasets(&s, r.o.DatasetDepth)
+	w.snapshots(&s, r.o.DatasetDepth)
 	w.alerts(&s)
 	w.services(&s)
 	w.jobs(&s)
@@ -246,22 +248,27 @@ func (w *writer) at(d *prometheus.Desc, t time.Time, labels ...string) {
 	w.gauge(d, float64(t.UnixMilli())/1000, labels...)
 }
 
-// rounds is how the polling itself is going, which is what says how far to trust the rest.
+// rounds is how the polling itself is going, which is what says how far to trust the rest. An area left out has nothing here either.
 func (w *writer) rounds(s *poll.State) {
-	if s.FastRound.Ran {
+	if s.Rounds[poll.AreaSystem].Ran {
 		w.flag(up, s.Up())
 	}
 
-	for _, round := range poll.Rounds {
-		r := s.Round(round)
+	for _, area := range poll.Every {
+		r, asked := s.Rounds[area]
+		if !asked {
+			continue
+		}
+
+		w.gauge(pollInterval, r.Interval.Seconds(), string(area))
 		if !r.Ran {
 			continue
 		}
 
-		w.gauge(pollDuration, r.Took.Seconds(), string(round))
-		w.write(pollFailures, prometheus.CounterValue, float64(r.Failures), string(round))
+		w.gauge(pollDuration, r.Took.Seconds(), string(area))
+		w.write(pollFailures, prometheus.CounterValue, float64(r.Failures), string(area))
 		if !r.LastSuccess.IsZero() {
-			w.at(pollLastSuccess, r.LastSuccess, string(round))
+			w.at(pollLastSuccess, r.LastSuccess, string(area))
 		}
 	}
 }
@@ -477,23 +484,18 @@ func (w *writer) disks(s *poll.State) {
 	}
 }
 
-// datasets counts every dataset and snapshot of each pool, and gives the space of the datasets no deeper than depth. The counts take in the deeper
-// ones, so that nothing is lost by not naming them.
+// datasets counts every dataset of each pool, and gives the space of the datasets no deeper than depth. The count takes in the deeper ones, so that
+// nothing is lost by not naming them.
 func (w *writer) datasets(s *poll.State, depth int) {
 	if !s.Datasets.Known() {
 		return
 	}
 
-	total, snaps, counted := map[string]int{}, map[string]int{}, map[string]bool{}
+	total := map[string]int{}
 	for i := range s.Datasets.Value {
 		d := &s.Datasets.Value[i]
 
 		total[d.Pool]++
-		if d.Snapshots != nil {
-			snaps[d.Pool] += *d.Snapshots
-			counted[d.Pool] = true
-		}
-
 		if d.Depth() > depth {
 			continue
 		}
@@ -514,17 +516,31 @@ func (w *writer) datasets(s *poll.State, depth int) {
 		if d.Compression > 0 {
 			w.gauge(datasetCompression, d.Compression, d.Name, d.Pool)
 		}
-
-		if d.Snapshots != nil {
-			w.count(datasetSnapshots, *d.Snapshots, d.Name, d.Pool)
-		}
 	}
 
 	for pool, n := range total {
 		w.count(datasets, n, pool)
-		if counted[pool] {
-			w.count(snapshots, snaps[pool], pool)
+	}
+}
+
+// snapshots counts every snapshot of each pool, and of each dataset no deeper than depth. The pool's count takes in the deeper ones.
+func (w *writer) snapshots(s *poll.State, depth int) {
+	if !s.Snapshots.Known() {
+		return
+	}
+
+	total := map[string]int{}
+	for i := range s.Snapshots.Value {
+		c := &s.Snapshots.Value[i]
+
+		total[c.Pool] += c.Count
+		if c.Depth() <= depth {
+			w.count(datasetSnapshots, c.Count, c.Dataset, c.Pool)
 		}
+	}
+
+	for pool, n := range total {
+		w.count(snapshots, n, pool)
 	}
 }
 

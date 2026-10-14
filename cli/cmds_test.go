@@ -90,7 +90,7 @@ func TestMakeBuildsTheCommands(t *testing.T) {
 		}
 	}
 	// a setting is a flag on every command, so it can be given after whichever one is run
-	for _, name := range []string{"server", "username", "api-key", "ca-file", "listen", "slow-interval", "dataset-depth", "config"} {
+	for _, name := range []string{"server", "username", "api-key", "ca-file", "listen", "dataset-depth", "metrics", "skip", "intervals", "config"} {
 		if root.PersistentFlags().Lookup(name) == nil {
 			t.Errorf("no --%s flag", name)
 		}
@@ -132,7 +132,7 @@ func TestPrintWritesThePage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`truenas_up 1`, `truenas_pool_healthy{pool="tank"} 1`, `truenas_disk_size_bytes{disk="sda",serial="ZR5A0001"} 0`, `truenas_poll_failures_total{poll="slow"} 0`} {
+	for _, want := range []string{`truenas_up 1`, `truenas_pool_healthy{pool="tank"} 1`, `truenas_disk_size_bytes{disk="sda",serial="ZR5A0001"} 0`, `truenas_poll_failures_total{poll="disks"} 0`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the page lacks %s:\n%s", want, out)
 		}
@@ -170,6 +170,54 @@ func TestDatasetDepthSaysHowDeepDatasetsAreNamed(t *testing.T) {
 		if !strings.Contains(out, `truenas_datasets{pool="tank"} 3`) {
 			t.Errorf("--dataset-depth %s: the count of datasets is not all three:\n%s", depth, out)
 		}
+	}
+}
+
+// A part of the NAS left out is not asked about and has nothing on the page, while the rest is as it was. --skip takes from what --metrics names as
+// it does from every part. A word that names no part stops the program before it connects.
+//
+//nolint:paralleltest // viper is global state; Make mutates it
+func TestMetricsAndSkipSayWhatIsAsked(t *testing.T) {
+	answers := func() *polltest.NAS {
+		return &polltest.NAS{PoolsAnswer: []poll.Pool{{Name: "tank", Healthy: true}}, AppsAnswer: poll.Apps{Status: "RUNNING"}, DisksAnswer: []poll.Disk{{Name: "sda", Serial: "ZR5A0001"}}}
+	}
+
+	for _, c := range []struct {
+		args    []string
+		on, off []string
+	}{
+		{[]string{"--skip", "apps,vms"}, []string{`truenas_pool_healthy{pool="tank"} 1`, `truenas_disk_size_bytes{`}, []string{"truenas_apps", "truenas_vms"}},
+		{[]string{"--metrics", "pools"}, []string{`truenas_pool_healthy{pool="tank"} 1`, "truenas_system_info"}, []string{"truenas_apps", "truenas_disk_", "truenas_alerts"}},
+		{[]string{"--metrics", "pools,disks", "--skip", "disks"}, []string{`truenas_pool_healthy{pool="tank"} 1`}, []string{"truenas_disk_", "truenas_apps"}},
+	} {
+		alone(t)
+
+		nas := answers()
+		out, err := run(t, stood(nas, nil), to("print", c.args...)...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range c.on {
+			if !strings.Contains(out, want) {
+				t.Errorf("%v: the page lacks %s:\n%s", c.args, want, out)
+			}
+		}
+		for _, unwanted := range c.off {
+			if strings.Contains(out, unwanted) {
+				t.Errorf("%v: the page holds %s:\n%s", c.args, unwanted, out)
+			}
+		}
+		if c.args[0] == "--skip" && (nas.Asked(polltest.Apps) != 0 || nas.Asked(polltest.VMs) != 0) {
+			t.Errorf("%v: apps were asked about %d times and virtual machines %d", c.args, nas.Asked(polltest.Apps), nas.Asked(polltest.VMs))
+		}
+	}
+
+	alone(t)
+
+	var connected bool
+	_, err := run(t, func(connection) (poll.NAS, func(), error) { connected = true; return answers(), func() {}, nil }, to("print", "--skip", "smart")...)
+	if err == nil || !strings.Contains(err.Error(), "TRUENAS_METRICS_SKIP") || connected {
+		t.Errorf("--skip smart = %v, connected %t; want it refused naming the setting, before connecting", err, connected)
 	}
 }
 
@@ -250,8 +298,8 @@ func TestPrintFailsWhenTheNASDoesNotAnswer(t *testing.T) {
 	if err == nil {
 		t.Error("print with one question refused succeeded, want it to fail")
 	}
-	if !strings.Contains(out, "truenas_up 1") || !strings.Contains(out, `truenas_pool_healthy{pool="tank"} 1`) || !strings.Contains(out, `truenas_poll_failures_total{poll="slow"} 1`) {
-		t.Errorf("the page should show the NAS up, its pool, and the slow round failed:\n%s", out)
+	if !strings.Contains(out, "truenas_up 1") || !strings.Contains(out, `truenas_pool_healthy{pool="tank"} 1`) || !strings.Contains(out, `truenas_poll_failures_total{poll="tasks"} 1`) {
+		t.Errorf("the page should show the NAS up, its pool, and the poll of tasks failed:\n%s", out)
 	}
 }
 
@@ -373,8 +421,8 @@ func TestServe(t *testing.T) {
 		t.Errorf("%s = %q, want ok", pmetrics.HealthPath, got)
 	}
 
-	// the first rounds are asked as the program starts, so they are on the page within moments: one question refused costs its own readings only
-	body := served(t, addr, `truenas_up 1`, `truenas_pool_healthy{pool="tank"} 1`, `truenas_poll_failures_total{poll="slow"} 1`, `truenas_alerts{level="CRITICAL"} 0`)
+	// every part is asked about as the program starts, so they are on the page within moments: one question refused costs its own readings only
+	body := served(t, addr, `truenas_up 1`, `truenas_pool_healthy{pool="tank"} 1`, `truenas_poll_failures_total{poll="tasks"} 1`, `truenas_alerts{level="CRITICAL"} 0`)
 	if strings.Contains(body, testKey) || strings.Contains(body, "truenas_tasks") {
 		t.Errorf("the page holds the key, or tasks the NAS refused to list:\n%s", body)
 	}
@@ -676,7 +724,7 @@ func TestPrintAgainstATrueNAS26(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// the stand-in answers only the two methods it was given, so the rounds fail on the rest: what matters here is that it was logged into
+	// the stand-in answers only the two methods it was given, so the polls of the rest fail: what matters here is that it was logged into
 	page, _ := printed(t, "--server", nas.Address(), "--username", nas.Username(), "--api-key", nas.Key(), "--certificate-file", certFile)
 	if nas.Logins() != 1 {
 		t.Fatalf("a TrueNAS 26 was logged into %d times, want once:\n%s", nas.Logins(), page)

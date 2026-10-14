@@ -22,6 +22,7 @@ const (
 	Clients      = "clients"
 	Disks        = "disks"
 	Datasets     = "datasets"
+	Snapshots    = "snapshots"
 	Tasks        = "tasks"
 	Shares       = "shares"
 	Certificates = "certificates"
@@ -31,11 +32,12 @@ const (
 	Key          = "key"
 )
 
-// Fast and Slow are the questions of each round.
-var (
-	Fast = []string{System, Pools, BootPool, Alerts, Services, Jobs, Apps, VMs, Clients}
-	Slow = []string{Disks, Datasets, Tasks, Shares, Certificates, Interfaces, Update, Directory, Key}
-)
+// Questions is the questions put about each area.
+var Questions = map[poll.Area][]string{
+	poll.AreaSystem: {System}, poll.AreaPools: {Pools, BootPool}, poll.AreaDisks: {Disks}, poll.AreaDatasets: {Datasets}, poll.AreaSnapshots: {Snapshots}, poll.AreaAlerts: {Alerts},
+	poll.AreaServices: {Services}, poll.AreaJobs: {Jobs}, poll.AreaApps: {Apps}, poll.AreaVMs: {VMs}, poll.AreaShares: {Shares}, poll.AreaClients: {Clients}, poll.AreaTasks: {Tasks},
+	poll.AreaUpdates: {Update}, poll.AreaInterfaces: {Interfaces}, poll.AreaCertificates: {Certificates}, poll.AreaDirectory: {Directory}, poll.AreaKeyExpiry: {Key},
+}
 
 // NAS answers each question with the value set for it. The zero value is a NAS with nothing on it; set the fields before it is polled.
 type NAS struct {
@@ -50,6 +52,7 @@ type NAS struct {
 	ClientsAnswer      []poll.Clients
 	DisksAnswer        []poll.Disk
 	DatasetsAnswer     []poll.Dataset
+	SnapshotsAnswer    []poll.SnapshotCount
 	TasksAnswer        []poll.Task
 	SharesAnswer       []poll.Share
 	CertificatesAnswer []poll.Certificate
@@ -151,6 +154,10 @@ func (n *NAS) Disks(ctx context.Context) ([]poll.Disk, error) {
 
 func (n *NAS) Datasets(ctx context.Context) ([]poll.Dataset, error) {
 	return n.DatasetsAnswer, n.answer(ctx, Datasets)
+}
+
+func (n *NAS) Snapshots(ctx context.Context) ([]poll.SnapshotCount, error) {
+	return n.SnapshotsAnswer, n.answer(ctx, Snapshots)
 }
 
 func (n *NAS) Tasks(ctx context.Context) ([]poll.Task, error) {
