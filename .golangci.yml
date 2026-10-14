@@ -92,6 +92,12 @@ linters:
       - path: '_test\.go'
         linters:
           - goconst
+      # the fields a query asks the NAS for are named as the NAS names them, and the same short ones
+      # (name, state, enabled) recur from one answer to the next; constants would only add indirection
+      - path: 'lib/nas/'
+        source: 'Select: |Fields = \[\]any\{'
+        linters:
+          - goconst
       # the idiomatic `if err := f(); err != nil` scoping shadows err on purpose; still flag other variables
       # and err shadows outside the if-statement form (source scopes the rule to the if idiom only)
       - text: 'shadow: declaration of "err"'

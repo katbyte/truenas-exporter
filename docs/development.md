@@ -13,7 +13,7 @@ Dependencies are vendored. The dev tools are pinned in `.tools/go.mod` and the m
 ## How it is put together
 
 - [`lib/poll`](../lib/poll) asks the questions on two schedules and keeps the last good answer to each.
-- [`lib/nas`](../lib/nas) is the only part that knows the TrueNAS API: which methods answer each question, and how to read what they say.
+- [`lib/nas`](../lib/nas) is the only part that knows the TrueNAS API: which methods answer each question, which of their fields it asks for, and how to read what they say.
 - [`lib/readings`](../lib/readings) turns what the poller knows into the page.
 - The connection to the NAS, and the types its answers are read into, are [truenas-mcp](https://github.com/katbyte/truenas-mcp)'s. A field that does not fit those types is put right there.
 
@@ -22,8 +22,8 @@ Dependencies are vendored. The dev tools are pinned in `.tools/go.mod` and the m
 `make test` needs no TrueNAS.
 
 - **The page.** It is built from a NAS the test makes up and kept whole in [`lib/readings/testdata/page.txt`](../lib/readings/testdata/page.txt). A renamed reading shows up as a difference there. `go test ./lib/readings -update` rewrites the file once the change is meant.
-- **The NAS's answers.** What a real NAS answers is kept in [`lib/nas/testdata`](../lib/nas/testdata), one file per method, with every name and serial number made up.
-- **Read only.** The list of methods the program may call is in `lib/nas`'s tests. Calling one that is not on the list fails them.
+- **The NAS's answers.** What a real NAS answers is kept in [`lib/nas/testdata`](../lib/nas/testdata), one file per method, with every name and serial number made up. The tests cut each answer down to the fields the program asks for, as the NAS does.
+- **Read only.** The list of methods the program may call is in `lib/nas`'s tests. Calling one that is not on the list fails them. So does a method on the list that the NAS's own description does not count as a read, and a query that does not name the fields it reads.
 - **The whole program.** One test runs it against a stand-in that speaks the API's protocol and answers from those files.
 
 ## The live tests

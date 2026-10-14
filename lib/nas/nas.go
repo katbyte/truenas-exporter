@@ -1,8 +1,9 @@
 // Package nas asks a TrueNAS the poller's questions over its API and turns what it says into the poller's own words.
 //
-// Each question is one or a few of the API's methods, all of them reads, asked through truenas-mcp's typed client. Its types are made from the
-// NAS's own description of each answer: a field that does not fit them fails that method, and is put right in truenas-mcp rather than here.
-// Nothing here dials or logs in; the calls go through a Caller that does.
+// Each question is one or a few of the API's methods, all of them reads, asked through truenas-mcp's typed client. A query names the fields it
+// reads and the NAS sends only those, so a field the page has no use for cannot fail it. The types are made from the NAS's own description of
+// each answer: a field that is read and does not fit them fails that method, and is put right in truenas-mcp rather than here. Nothing here
+// dials or logs in; the calls go through a Caller that does.
 package nas
 
 import (

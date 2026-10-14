@@ -9,9 +9,12 @@ import (
 	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
+// poolFields is what is read of a pool.
+var poolFields = []any{"name", "status", "healthy", "warning", "size", "allocated", "free", "freeing", "fragmentation", "scan", "topology"}
+
 // Pools asks the NAS for its pools, the boot pool not among them.
 func (n *NAS) Pools(ctx context.Context) ([]poll.Pool, error) {
-	pools, err := n.api.Pool.Query(ctx, nil, truenas.PoolQueryOptions{})
+	pools, err := n.api.Pool.Query(ctx, nil, truenas.PoolQueryOptions{Select: poolFields})
 	if err != nil {
 		return nil, err
 	}

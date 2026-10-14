@@ -51,34 +51,38 @@ func stateTask(kind poll.TaskKind, id int, name string, enabled bool, s *truenas
 	return t
 }
 
-// Tasks asks the NAS for its scheduled tasks of every kind and how each last went.
+// jobFields is what is read of the last job of a task the NAS runs as one.
+var jobFields = []any{"job.state", "job.progress.percent", "job.time_started", "job.time_finished"}
+
+// Tasks asks the NAS for its scheduled tasks of every kind and how each last went. Nothing else of a task is asked for: a replication's answer
+// would hold the key it encrypts with, and a cloud task's the credentials it uses.
 func (n *NAS) Tasks(ctx context.Context) ([]poll.Task, error) {
-	snapshots, err := n.api.PoolSnapshottask.Query(ctx, nil, truenas.PoolSnapshottaskQueryOptions{})
+	snapshots, err := n.api.PoolSnapshottask.Query(ctx, nil, truenas.PoolSnapshottaskQueryOptions{Select: []any{"id", "dataset", "enabled", "state.state", "state.datetime"}})
 	if err != nil {
 		return nil, err
 	}
 
-	replications, err := n.api.Replication.Query(ctx, nil, truenas.ReplicationQueryOptions{})
+	replications, err := n.api.Replication.Query(ctx, nil, truenas.ReplicationQueryOptions{Select: []any{"id", "name", "enabled", "state.state", "state.datetime"}})
 	if err != nil {
 		return nil, err
 	}
 
-	cloudSyncs, err := n.api.Cloudsync.Query(ctx, nil, truenas.CloudsyncQueryOptions{})
+	cloudSyncs, err := n.api.Cloudsync.Query(ctx, nil, truenas.CloudsyncQueryOptions{Select: append([]any{"id", "description", "enabled"}, jobFields...)})
 	if err != nil {
 		return nil, err
 	}
 
-	cloudBackups, err := n.api.CloudBackup.Query(ctx, nil, truenas.CloudBackupQueryOptions{})
+	cloudBackups, err := n.api.CloudBackup.Query(ctx, nil, truenas.CloudBackupQueryOptions{Select: append([]any{"id", "description", "enabled"}, jobFields...)})
 	if err != nil {
 		return nil, err
 	}
 
-	rsyncs, err := n.api.Rsynctask.Query(ctx, nil, truenas.RsynctaskQueryOptions{})
+	rsyncs, err := n.api.Rsynctask.Query(ctx, nil, truenas.RsynctaskQueryOptions{Select: append([]any{"id", "desc", "enabled"}, jobFields...)})
 	if err != nil {
 		return nil, err
 	}
 
-	scrubs, err := n.api.PoolScrub.Query(ctx, nil, truenas.PoolScrubQueryOptions{})
+	scrubs, err := n.api.PoolScrub.Query(ctx, nil, truenas.PoolScrubQueryOptions{Select: []any{"id", "pool_name", "enabled"}})
 	if err != nil {
 		return nil, err
 	}

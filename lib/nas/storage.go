@@ -10,9 +10,12 @@ import (
 	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
+// diskFields is what is read of a disk.
+var diskFields = []any{"name", "serial", "lunid", "model", "type", "bus", "size", "enclosure"}
+
 // Disks asks the NAS for every disk it knows of, and for the temperature of each.
 func (n *NAS) Disks(ctx context.Context) ([]poll.Disk, error) {
-	disks, err := n.api.Disk.Query(ctx, nil, truenas.DiskQueryOptions{})
+	disks, err := n.api.Disk.Query(ctx, nil, truenas.DiskQueryOptions{Select: diskFields})
 	if err != nil {
 		return nil, err
 	}
@@ -46,9 +49,17 @@ func (n *NAS) Disks(ctx context.Context) ([]poll.Disk, error) {
 // datasetProperties is the properties of a dataset the NAS is asked for: named, so that it does not read out the dozens there are for each.
 var datasetProperties = []string{"used", "available", "usedbydataset", "usedbysnapshots", "quota", "refquota", "compressratio"}
 
-// Datasets asks the NAS for every dataset, however deep, as one flat list with how many snapshots each has.
+// datasetFields is what is read of a dataset: of each property, only the value the NAS has made a number of.
+var datasetFields = []any{"name", "pool", "type", "used.parsed", "available.parsed", "usedbydataset.parsed", "usedbysnapshots.parsed", "quota.parsed", "refquota.parsed", "compressratio.parsed", "snapshot_count"}
+
+// everyDataset is a filter every dataset passes. Asked for datasets without the ones under each, the NAS goes below the pools only when it is
+// given a filter.
+var everyDataset = []any{[]any{"type", "in", []string{"FILESYSTEM", "VOLUME"}}}
+
+// Datasets asks the NAS for every dataset, however deep, as one flat list with how many snapshots each has. Each is asked for without the ones
+// under it: with them, every row holds a copy of the whole tree below, and the answer grows with how deep the tree goes.
 func (n *NAS) Datasets(ctx context.Context) ([]poll.Dataset, error) {
-	datasets, err := n.api.PoolDataset.Query(ctx, nil, truenas.PoolDatasetQueryOptions{Extra: map[string]any{"flat": true, "retrieve_children": true, "properties": datasetProperties, "snapshots_count": true}})
+	datasets, err := n.api.PoolDataset.Query(ctx, everyDataset, truenas.PoolDatasetQueryOptions{Select: datasetFields, Extra: map[string]any{"retrieve_children": false, "properties": datasetProperties, "snapshots_count": true}})
 	if err != nil {
 		return nil, err
 	}
@@ -75,19 +86,23 @@ func (n *NAS) Datasets(ctx context.Context) ([]poll.Dataset, error) {
 	return out, nil
 }
 
+// shareFields is what is read of an SMB or an NFS share.
+var shareFields = []any{"enabled", "locked"}
+
 // Shares asks the NAS for its SMB and NFS shares and its iSCSI targets. Nothing of a share is kept but how it is offered and whether it is on.
 func (n *NAS) Shares(ctx context.Context) ([]poll.Share, error) {
-	smb, err := n.api.SharingSmb.Query(ctx, nil, truenas.SharingSmbQueryOptions{})
+	smb, err := n.api.SharingSmb.Query(ctx, nil, truenas.SharingSmbQueryOptions{Select: shareFields})
 	if err != nil {
 		return nil, err
 	}
 
-	nfs, err := n.api.SharingNfs.Query(ctx, nil, truenas.SharingNfsQueryOptions{})
+	nfs, err := n.api.SharingNfs.Query(ctx, nil, truenas.SharingNfsQueryOptions{Select: shareFields})
 	if err != nil {
 		return nil, err
 	}
 
-	iscsi, err := n.api.IscsiTarget.Query(ctx, nil, truenas.IscsiTargetQueryOptions{})
+	// a target is only counted, so nothing of it is read but its number
+	iscsi, err := n.api.IscsiTarget.Query(ctx, nil, truenas.IscsiTargetQueryOptions{Select: []any{"id"}})
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +126,7 @@ func (n *NAS) Shares(ctx context.Context) ([]poll.Share, error) {
 // Certificates asks the NAS for the certificates it holds and when each runs out. The NAS writes those times in its own time zone without naming
 // it, so it is asked for its zone too.
 func (n *NAS) Certificates(ctx context.Context) ([]poll.Certificate, error) {
-	certificates, err := n.api.Certificate.Query(ctx, nil, truenas.CertificateQueryOptions{})
+	certificates, err := n.api.Certificate.Query(ctx, nil, truenas.CertificateQueryOptions{Select: []any{"name", "until"}})
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +151,7 @@ const linkUp = "LINK_STATE_UP"
 
 // Interfaces asks the NAS for its network interfaces and whether each has a link.
 func (n *NAS) Interfaces(ctx context.Context) ([]poll.Interface, error) {
-	interfaces, err := n.api.Interface.Query(ctx, nil, truenas.InterfaceQueryOptions{})
+	interfaces, err := n.api.Interface.Query(ctx, nil, truenas.InterfaceQueryOptions{Select: []any{"name", "type", "state.link_state", "state.mtu"}})
 	if err != nil {
 		return nil, err
 	}

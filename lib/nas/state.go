@@ -28,7 +28,7 @@ const running = "RUNNING"
 
 // Services asks the NAS which of its services are running and which start with it.
 func (n *NAS) Services(ctx context.Context) ([]poll.Service, error) {
-	services, err := n.api.Service.Query(ctx, nil, truenas.ServiceQueryOptions{})
+	services, err := n.api.Service.Query(ctx, nil, truenas.ServiceQueryOptions{Select: []any{"service", "state", "enable"}})
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (n *NAS) Services(ctx context.Context) ([]poll.Service, error) {
 
 // Jobs asks the NAS for the jobs that are running or waiting to. The ones that are over are not asked for: the NAS keeps hundreds.
 func (n *NAS) Jobs(ctx context.Context) ([]poll.Job, error) {
-	jobs, err := n.api.Core.GetJobs(ctx, []any{[]any{"state", "in", poll.JobStates}}, truenas.CoreGetJobsOptions{})
+	jobs, err := n.api.Core.GetJobs(ctx, []any{[]any{"state", "in", poll.JobStates}}, truenas.CoreGetJobsOptions{Select: []any{"method", "state"}})
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (n *NAS) Apps(ctx context.Context) (poll.Apps, error) {
 		return poll.Apps{}, err
 	}
 
-	apps, err := n.api.App.Query(ctx, nil, truenas.AppQueryOptions{})
+	apps, err := n.api.App.Query(ctx, nil, truenas.AppQueryOptions{Select: []any{"name", "state", "upgrade_available"}})
 	if err != nil {
 		return poll.Apps{}, err
 	}
@@ -78,7 +78,7 @@ func (n *NAS) Apps(ctx context.Context) (poll.Apps, error) {
 
 // VMs asks the NAS for its virtual machines and whether each is running.
 func (n *NAS) VMs(ctx context.Context) ([]poll.VM, error) {
-	vms, err := n.api.Vm.Query(ctx, nil, truenas.VmQueryOptions{})
+	vms, err := n.api.Vm.Query(ctx, nil, truenas.VmQueryOptions{Select: []any{"name", "status.state"}})
 	if err != nil {
 		return nil, err
 	}

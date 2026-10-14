@@ -1,9 +1,11 @@
 package nas_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,6 +16,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/katbyte/truenas-mcp/sdk/truenas"
 	"github.com/katbyte/truenas-metrics/lib/nas"
 	"github.com/katbyte/truenas-metrics/lib/poll"
 )
@@ -50,7 +53,97 @@ func (c *canned) Call(_ context.Context, method string, params []any, into any) 
 		}
 	}
 
+	// a field that is read but was not asked for is missing here, as it would be from the NAS
+	answer, err := picked(answer, fields(params))
+	if err != nil {
+		return fmt.Errorf("%s: %w", method, err)
+	}
+
 	return json.Unmarshal(answer, into)
+}
+
+// fields is the fields a query names in its options, or none for a call that is not a query or names none.
+func fields(params []any) []string {
+	if len(params) < 2 {
+		return nil
+	}
+
+	options, err := json.Marshal(params[1])
+	if err != nil {
+		return nil
+	}
+
+	var named struct {
+		Select []string `json:"select"`
+	}
+	if json.Unmarshal(options, &named) != nil {
+		return nil
+	}
+
+	return named.Select
+}
+
+// picked is a query's answer cut down to the fields named, as the NAS cuts it: a dotted name is a field inside a record, a field a row does not
+// have is left out, and a record that is nothing stays nothing. With no fields named it is the whole answer.
+func picked(answer []byte, names []string) ([]byte, error) {
+	if len(names) == 0 {
+		return answer, nil
+	}
+
+	var rows []map[string]any
+	d := json.NewDecoder(bytes.NewReader(answer))
+	d.UseNumber()
+	if err := d.Decode(&rows); err != nil {
+		return nil, err
+	}
+
+	out := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		entry := map[string]any{}
+		for _, name := range names {
+			if err := pick(row, entry, strings.Split(name, ".")); err != nil {
+				return nil, fmt.Errorf("%s: %w", name, err)
+			}
+		}
+
+		out = append(out, entry)
+	}
+
+	return json.Marshal(out)
+}
+
+// pick copies the field at path from row into entry. The walk stops at a value that is not a record, and that value is what is copied; one
+// that is a list cannot be walked into, and the NAS turns the query down.
+func pick(row, entry map[string]any, path []string) error {
+	var keys []string
+	var at any = row
+	for _, key := range path {
+		if _, ok := at.([]any); ok {
+			return errors.New("a list cannot be picked into")
+		}
+
+		record, ok := at.(map[string]any)
+		if !ok {
+			break
+		}
+
+		if at, ok = record[key]; !ok {
+			return nil
+		}
+		keys = append(keys, key)
+	}
+
+	for _, key := range keys[:len(keys)-1] {
+		next, ok := entry[key].(map[string]any)
+		if !ok {
+			next = map[string]any{}
+			entry[key] = next
+		}
+		entry = next
+	}
+	entry[keys[len(keys)-1]] = at
+
+	return nil
 }
 
 // methods is every method the NAS was asked, in order of name.
@@ -247,7 +340,7 @@ func TestJobs(t *testing.T) {
 	same(t, "jobs", got, []poll.Job{{Method: "cloudsync.sync", State: "RUNNING"}})
 
 	asked, _ := json.Marshal(c.asked["core.get_jobs"])
-	if string(asked) != `[[["state","in",["RUNNING","WAITING"]]]]` {
+	if string(asked) != `[[["state","in",["RUNNING","WAITING"]]],{"select":["method","state"]}]` {
 		t.Errorf("core.get_jobs was asked with %s, want only the jobs running or waiting", asked)
 	}
 }
@@ -341,8 +434,9 @@ func TestDatasets(t *testing.T) {
 		t.Errorf("a dataset two deep with a quota = %+v", d)
 	}
 
+	// without the datasets under each, with a filter every dataset passes so the NAS goes below the pools, and of each only what is read
 	asked, _ := json.Marshal(c.asked["pool.dataset.query"])
-	if want := `[[],{"extra":{"flat":true,"properties":["used","available","usedbydataset","usedbysnapshots","quota","refquota","compressratio"],"retrieve_children":true,"snapshots_count":true}}]`; string(asked) != want {
+	if want := `[[["type","in",["FILESYSTEM","VOLUME"]]],{"extra":{"properties":["used","available","usedbydataset","usedbysnapshots","quota","refquota","compressratio"],"retrieve_children":false,"snapshots_count":true},"select":["name","pool","type","used.parsed","available.parsed","usedbydataset.parsed","usedbysnapshots.parsed","quota.parsed","refquota.parsed","compressratio.parsed","snapshot_count"]}]`; string(asked) != want {
 		t.Errorf("pool.dataset.query was asked with\n%s\nwant\n%s", asked, want)
 	}
 }
@@ -611,6 +705,32 @@ func TestEveryQuestionOnlyReads(t *testing.T) {
 	}
 
 	same(t, "the methods called", c.methods(), reads)
+
+	// every query names the fields it reads, so a field the page has no use for cannot fail it
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for method, params := range c.asked {
+		query := slices.ContainsFunc(truenas.Operations, func(o truenas.OperationInfo) bool { return o.Method == method && o.Form == "count" })
+		if query && len(fields(params)) == 0 {
+			t.Errorf("%s does not name the fields it reads", method)
+		}
+	}
+}
+
+// Every method on the list of reads is one that changes nothing on the NAS, as truenas-mcp's table of methods has it from the NAS's own
+// description. Where the two disagree, the table is looked at in truenas-mcp, not overruled here.
+func TestEveryReadIsAReadToTheNAS(t *testing.T) {
+	t.Parallel()
+
+	for _, method := range reads {
+		i := slices.IndexFunc(truenas.Operations, func(o truenas.OperationInfo) bool { return o.Method == method && o.Form == "" })
+		switch {
+		case i < 0:
+			t.Errorf("%s is not a method the NAS describes", method)
+		case !truenas.Operations[i].Read:
+			t.Errorf("%s is not a read to the NAS's own description", method)
+		}
+	}
 }
 
 // errNoSuchMethod is the NAS having no method of the name called.

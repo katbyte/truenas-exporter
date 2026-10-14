@@ -37,7 +37,7 @@ github.com/katbyte/go-kt/version
 # github.com/katbyte/pandorest v0.9.1
 ## explicit; go 1.27.0
 github.com/katbyte/pandorest/client
-# github.com/katbyte/truenas-mcp v0.0.0-20261014073745-cf580260d372
+# github.com/katbyte/truenas-mcp v0.0.0-20261014165850-39694c564e49
 ## explicit; go 1.27.0
 github.com/katbyte/truenas-mcp/acceptance/layout
 github.com/katbyte/truenas-mcp/sdk/truenas
