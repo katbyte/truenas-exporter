@@ -86,14 +86,14 @@ A part left out is never asked about and has nothing on the page.
 | `shares` | shares | 5m |
 | `clients` | clients connected to the shares | 30s |
 | `tasks` | scheduled tasks | 5m |
-| `updates` | whether a newer TrueNAS is out | 5m |
+| `updates` | whether a newer TrueNAS is out | 4h |
 | `interfaces` | network interfaces | 5m |
 | `certificates` | when certificates expire | 5m |
 | `directory` | the directory service | 5m |
 | `key-expiry` | when the program's API key expires | 5m |
 
 - `system` is always asked about, since it is what says the NAS is answering. It can be given its own time, but not left out.
-- Counting snapshots has the NAS go through every one, so it is asked least often.
+- Counting snapshots has the NAS go through every one, so it is asked less often than most. A newer TrueNAS comes out seldom, so the NAS looks for one only every few hours.
 - A word that names no part, or a time that cannot be read, stops the program at start.
 - Pools give each disk's serial number only while `disks` is asked, and disks give their pool only while `pools` is.
 

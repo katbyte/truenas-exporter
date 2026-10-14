@@ -18,10 +18,10 @@ Prometheus text format, with a health probe at /healthz.
 
 A scrape is answered from memory and never waits on the NAS. Each part of the NAS is asked
 about on its own schedule: its own state, pools, alerts, services, jobs, apps, virtual
-machines and connected clients every 30 seconds, snapshot counts every 10 minutes, and the
-rest every 5, unless --intervals says otherwise. A NAS that stops answering is reported as
-truenas_up 0, and what it last said of each part is served for three of that part's
-intervals and then left off.
+machines and connected clients every 30 seconds, snapshot counts every 10 minutes, whether
+a newer TrueNAS is out every 4 hours, and the rest every 5 minutes, unless --intervals says
+otherwise. A NAS that stops answering is reported as truenas_up 0, and what it last said of
+each part is served for three of that part's intervals and then left off.
 
 --metrics names the parts of the NAS to ask about, every one unless set, and --skip leaves
 some of those out.

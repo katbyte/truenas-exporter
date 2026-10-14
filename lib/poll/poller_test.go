@@ -11,7 +11,7 @@ import (
 	"github.com/katbyte/truenas-metrics/lib/poll/polltest"
 )
 
-// every is how often the tests poll: the program's own defaults, every 30 seconds, 5 minutes or 10 minutes by area.
+// every is how often the tests poll: the program's own defaults, every 30 seconds, 5 or 10 minutes, or 4 hours by area.
 var every = poll.DefaultIntervals()
 
 // errDown is a NAS that is not there.
@@ -210,7 +210,7 @@ func TestAnAnswerIsDroppedOnceStale(t *testing.T) {
 		}
 
 		time.Sleep(3 * 5 * time.Minute)
-		if s := p.State(); s.Disks.Known() || s.Datasets.Known() || s.Tasks.Known() || s.Shares.Known() || s.Certificates.Known() || s.Interfaces.Known() || s.Update.Known() || s.Directory.Known() || s.Key.Known() {
+		if s := p.State(); s.Disks.Known() || s.Datasets.Known() || s.Tasks.Known() || s.Shares.Known() || s.Certificates.Known() || s.Interfaces.Known() || s.Directory.Known() || s.Key.Known() {
 			t.Error("the answers asked for every 5 minutes outlived three intervals")
 		}
 		if s := p.State(); !s.Snapshots.Known() {
@@ -220,6 +220,14 @@ func TestAnAnswerIsDroppedOnceStale(t *testing.T) {
 		time.Sleep(3 * 5 * time.Minute)
 		if s := p.State(); s.Snapshots.Known() {
 			t.Error("the snapshot counts outlived three intervals")
+		}
+		if s := p.State(); !s.Update.Known() {
+			t.Error("the update check, asked for every 4 hours, was dropped on another area's clock")
+		}
+
+		time.Sleep(12 * time.Hour)
+		if s := p.State(); s.Update.Known() {
+			t.Error("the update check outlived three intervals")
 		}
 	})
 }

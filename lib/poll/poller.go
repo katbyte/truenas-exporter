@@ -55,14 +55,15 @@ type Intervals map[Area]time.Duration
 
 // DefaultIntervals is how often each area is asked about unless the settings say otherwise. What changes by the minute is asked about as often as a
 // scrape every 30 seconds asks, and what changes only when somebody changes it or a task runs every few minutes. Counting snapshots has the NAS go
-// through every one, so it is asked less often still.
+// through every one, so it is asked less often still, and a newer TrueNAS comes out seldom enough that the NAS need only look every few hours.
 func DefaultIntervals() Intervals {
 	fast, slow := 30*time.Second, 5*time.Minute
 
 	return Intervals{
 		AreaSystem: fast, AreaPools: fast, AreaAlerts: fast, AreaServices: fast, AreaJobs: fast, AreaApps: fast, AreaVMs: fast, AreaClients: fast,
-		AreaDisks: slow, AreaDatasets: slow, AreaShares: slow, AreaTasks: slow, AreaUpdates: slow, AreaInterfaces: slow, AreaCertificates: slow, AreaDirectory: slow, AreaKeyExpiry: slow,
+		AreaDisks: slow, AreaDatasets: slow, AreaShares: slow, AreaTasks: slow, AreaInterfaces: slow, AreaCertificates: slow, AreaDirectory: slow, AreaKeyExpiry: slow,
 		AreaSnapshots: 10 * time.Minute,
+		AreaUpdates:   4 * time.Hour,
 	}
 }
 

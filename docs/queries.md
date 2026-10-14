@@ -30,4 +30,4 @@ truenas_disk_temperature_celsius * on (serial) group_left (model, pool) truenas_
 
 ## How often to scrape
 
-Scraping more often than the NAS is asked gains nothing. The page only changes when a poll comes back: every 30 seconds for what changes quickly, every 5 or 10 minutes for the rest, or as `--intervals` says.
+Scraping more often than the NAS is asked gains nothing. The page only changes when a poll comes back: every 30 seconds for what changes quickly, every 5 or 10 minutes for most of the rest, or as `--intervals` says.

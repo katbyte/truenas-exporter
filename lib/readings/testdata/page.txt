@@ -190,7 +190,7 @@ truenas_poll_interval_seconds{poll="shares"} 300
 truenas_poll_interval_seconds{poll="snapshots"} 600
 truenas_poll_interval_seconds{poll="system"} 30
 truenas_poll_interval_seconds{poll="tasks"} 300
-truenas_poll_interval_seconds{poll="updates"} 300
+truenas_poll_interval_seconds{poll="updates"} 14400
 truenas_poll_interval_seconds{poll="vms"} 30
 # HELP truenas_poll_last_success_timestamp_seconds When each part of the NAS was last answered in full, in seconds since 1970.
 # TYPE truenas_poll_last_success_timestamp_seconds gauge
