@@ -140,3 +140,4 @@ truenas_task_last_run_failed == 1      # a scheduled task failed
 - [docs/settings.md](docs/settings.md): the user and key, the certificate, the settings file.
 - [docs/queries.md](docs/queries.md): alerts and queries to start from.
 - [docs/development.md](docs/development.md): building, the tests and how the code is laid out.
+- [CONTRIBUTING.md](CONTRIBUTING.md): sending a change, and how releases are cut.
