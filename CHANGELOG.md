@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-10-14)
 
 The first release: a metrics page for a TrueNAS.
 
@@ -15,5 +15,6 @@ The first release: a metrics page for a TrueNAS.
 - **Nobody's name is on it**: no share, path, user or client, and datasets are named only as deep as you say.
 - **It only reads**, over the NAS's API and from another machine. Nothing is installed on the NAS, and a NAS that is slow or down never holds up a scrape.
 - **`serve` keeps the page up** for a scraper to read, and `print` shows it once as a check that the NAS can be reached.
+- **Ask about only what you want, as often as you want**: `--metrics` and `--skip` choose which parts of the NAS are asked about, and `--intervals` how often each is. By default the quick-changing parts are asked every 30 seconds, most of the rest every 5 minutes, snapshot counts every 10 and the update check every 4 hours.
 - **Labels of your own on every reading**, to tell one NAS from another.
 - Ships as a Docker image, a Homebrew formula and ready-built programs.
