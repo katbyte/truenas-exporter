@@ -426,7 +426,8 @@ func TestShares(t *testing.T) {
 	}
 }
 
-// When a certificate runs out, which the NAS writes as a line of text and not as it writes every other time.
+// When a certificate runs out, which the NAS writes as a line of text in its own time zone without naming it, and not as it writes every other
+// time. Read as UTC, a NAS in Los Angeles would have its certificates run out eight hours early.
 func TestCertificates(t *testing.T) {
 	t.Parallel()
 
@@ -434,7 +435,20 @@ func TestCertificates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	same(t, "certificates", got, []poll.Certificate{{Name: "truenas_default", Expires: time.Date(2027, time.March, 6, 8, 30, 0, 0, time.UTC)}})
+	same(t, "certificates", got, []poll.Certificate{{Name: "truenas_default", Expires: time.Date(2027, time.March, 6, 16, 30, 0, 0, time.UTC)}})
+
+	// a time that names its zone, or is a number, is where it says it is whatever the NAS's zone, and a zone this machine does not know is UTC
+	for _, c := range []struct{ zone, until string }{
+		{"America/Los_Angeles", `"2027-03-06T08:30:00Z"`},
+		{"America/Los_Angeles", `{"$date": 1804321800000}`},
+		{"Nowhere/Atlantis", `"Sat Mar 06 08:30:00 2027"`},
+	} {
+		got, err = of(&canned{instead: map[string]string{"certificate.query": `[{"name": "c", "until": ` + c.until + `}]`, "system.info": `{"timezone": "` + c.zone + `"}`}}).Certificates(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		same(t, c.until+" on a NAS in "+c.zone, got, []poll.Certificate{{Name: "c", Expires: time.Date(2027, time.March, 6, 8, 30, 0, 0, time.UTC)}})
+	}
 
 	// a date that cannot be read is no date, and the certificate is still listed
 	got, err = of(&canned{instead: map[string]string{"certificate.query": `[{"name": "odd", "until": "next spring"}, {"name": "unparsed", "until": null}]`}}).Certificates(t.Context())

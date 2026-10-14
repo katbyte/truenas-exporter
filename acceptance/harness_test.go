@@ -5,6 +5,8 @@ package acceptance_test
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net"
@@ -28,6 +30,10 @@ var (
 	key      = os.Getenv("TRUENAS_METRICS_TEST_API_KEY")
 	certFile = os.Getenv("TRUENAS_METRICS_TEST_CERTIFICATE_FILE")
 )
+
+// furnished is whether the NAS under test is truenas-mcp's throwaway one with one of each thing a NAS is watched for on it, under the names its
+// layout package gives them. make testacc asks its test environment for such a NAS with this same variable, which is how the suite knows.
+var furnished = os.Getenv("TRUENAS_TEST_FURNISHED") == "1"
 
 // patience is how long the page is given to show what a round of questions brought back.
 const patience = 30 * time.Second
@@ -182,6 +188,28 @@ func asking(t *testing.T) *truenasrpc.Conn {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	return conn
+}
+
+// shown is the certificate the NAS under test shows, from the file the suite was given for it.
+func shown(t *testing.T) *x509.Certificate {
+	t.Helper()
+
+	text, err := os.ReadFile(certFile) //nolint:gosec // G304: the file is the one the person running the suite named for the NAS's certificate
+	if err != nil {
+		t.Fatalf("reading the NAS's certificate: %v", err)
+	}
+
+	block, _ := pem.Decode(text)
+	if block == nil {
+		t.Fatalf("%s holds no certificate", certFile)
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("reading the NAS's certificate: %v", err)
+	}
+
+	return cert
 }
 
 // asked calls one method on the NAS under test and gives its answer as a T.

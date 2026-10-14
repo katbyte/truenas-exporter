@@ -5,11 +5,13 @@ package acceptance_test
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/katbyte/go-kt/pmetrics"
+	"github.com/katbyte/truenas-mcp/acceptance/layout"
 	"github.com/katbyte/truenas-mcp/sdk/truenasrpc"
 	"github.com/prometheus/client_golang/prometheus/testutil/promlint"
 )
@@ -110,8 +112,18 @@ type said struct {
 	Alerts []struct {
 		Dismissed bool `json:"dismissed"`
 	}
+	VMs []struct {
+		Name   string `json:"name"`
+		Status struct {
+			State string `json:"state"`
+		} `json:"status"`
+	}
 	Tasks  map[string]int
 	Shares map[string]int
+
+	// Temperatures is what each disk that says how hot it is says, by the disk's name. A disk warms and cools by the minute, so this is left out of
+	// what is compared between one asking and the next.
+	Temperatures map[string]float64 `json:"-"`
 }
 
 // ask is what the NAS says now.
@@ -146,6 +158,19 @@ func ask(t *testing.T, conn *truenasrpc.Conn) said {
 	s.Alerts = asked[[]struct {
 		Dismissed bool `json:"dismissed"`
 	}](t, conn, "alert.list")
+	s.VMs = asked[[]struct {
+		Name   string `json:"name"`
+		Status struct {
+			State string `json:"state"`
+		} `json:"status"`
+	}](t, conn, "vm.query")
+
+	s.Temperatures = map[string]float64{}
+	for disk, degrees := range asked[map[string]*float64](t, conn, "disk.temperatures") {
+		if degrees != nil {
+			s.Temperatures[disk] = *degrees
+		}
+	}
 
 	s.Tasks, s.Shares = map[string]int{}, map[string]int{}
 	for kind, method := range map[string]string{"snapshot": "pool.snapshottask.query", "replication": "replication.query", "cloud_sync": "cloudsync.query", "cloud_backup": "cloud_backup.query", "rsync": "rsynctask.query", "scrub": "pool.scrub.query"} {
@@ -158,8 +183,9 @@ func ask(t *testing.T, conn *truenasrpc.Conn) said {
 	return s
 }
 
-// The page is compared with the NAS's own answers: every pool with the status the NAS gives it, every disk by name and serial number, every
-// dataset, every service, and as many alerts, tasks and shares as the NAS lists. Nothing is known of the NAS beforehand, so this holds for any.
+// The page is compared with the NAS's own answers: every pool with the status the NAS gives it, every disk by name and serial number and how hot
+// it says it is, every dataset, service and virtual machine, and as many alerts, tasks and shares as the NAS lists. Nothing is known of the NAS
+// beforehand, so this holds for any.
 func TestThePageSaysWhatTheNASSays(t *testing.T) {
 	live(t)
 	pageSaysWhatTheNASSays(t)
@@ -231,6 +257,13 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 				t.Errorf("truenas_disk_size_bytes of %s = %v, want %d", disk.Name, got, *disk.Size)
 			}
 		}
+
+		// a disk that says how hot it is has that on the page, give or take what it warmed or cooled since it was asked, and one that says
+		// nothing has no temperature there
+		want, says := nas.Temperatures[disk.Name]
+		if got, ok := one(page, "truenas_disk_temperature_celsius", map[string]string{"disk": disk.Name, "serial": disk.Serial}); ok != says || math.Abs(got-want) > 5 {
+			t.Errorf("truenas_disk_temperature_celsius of %s = %v (on the page: %t), want about %v (the NAS gives one: %t)", disk.Name, got, ok, want, says)
+		}
 	}
 
 	// every disk a pool has is one the NAS lists, so each has a serial number to be joined on. A disk the pool has lost is not listed any more,
@@ -271,6 +304,27 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 		}
 	}
 
+	// the certificate the NAS shows is one it holds, and the page says it runs out when the certificate itself says. The NAS writes that time in its
+	// own zone without naming it, so a page that took it for UTC is hours out
+	if certFile != "" {
+		cert, found := shown(t), false
+		for _, r := range readings(page, "truenas_certificate_expiry_timestamp_seconds") {
+			found = found || r.value == float64(cert.NotAfter.Unix())
+		}
+		if !found {
+			t.Errorf("no certificate on the page runs out when the one the NAS shows does, %s", cert.NotAfter.UTC())
+		}
+	}
+
+	if got := len(readings(page, "truenas_vm_state")); got != len(nas.VMs) {
+		t.Errorf("%d virtual machines on the page, want the NAS's %d", got, len(nas.VMs))
+	}
+	for _, vm := range nas.VMs {
+		if got, ok := one(page, "truenas_vm_state", map[string]string{"vm": vm.Name, "state": vm.Status.State}); !ok || got != 1 {
+			t.Errorf("the virtual machine %s is not on the page as %s", vm.Name, vm.Status.State)
+		}
+	}
+
 	var showing, dismissed float64
 	for _, alert := range nas.Alerts {
 		if alert.Dismissed {
@@ -302,6 +356,86 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 		if int(got) != want {
 			t.Errorf("%v shares over %s on the page, want the NAS's %d", got, protocol, want)
 		}
+	}
+
+	if t.Failed() {
+		t.Logf("the page:\n%s", page)
+	}
+}
+
+// A bare NAS has no shares, virtual machines or tasks, so holding the page to it proves little of those readings: nothing is equal to nothing. A
+// furnished one has a share of each kind, a machine that is not running, a task that ran, one that never has and one that failed, and a disk that
+// says how hot it is. Each has to be on the page as what it is.
+func TestTheFurnishedNASIsOnThePage(t *testing.T) {
+	live(t)
+	if !furnished {
+		t.Skip("the NAS under test is not said to be a furnished one: TRUENAS_TEST_FURNISHED is not 1")
+	}
+
+	page, err := printed(t)
+	if err != nil {
+		t.Fatalf("print: %v", err)
+	}
+
+	snapshots := map[string]string{"kind": "snapshot", "name": layout.TaskDataset}
+	replication := map[string]string{"kind": "replication", "name": layout.Replication}
+	copying := map[string]string{"kind": "rsync", "name": layout.CopyTask}
+
+	for _, r := range []struct {
+		name string
+		with map[string]string
+		want float64
+	}{
+		{"truenas_shares", map[string]string{"protocol": "smb", "state": "enabled"}, 1},
+		{"truenas_shares", map[string]string{"protocol": "nfs", "state": "enabled"}, 1},
+		{"truenas_shares", map[string]string{"protocol": "iscsi", "state": "enabled"}, 1},
+		{"truenas_vm_state", map[string]string{"vm": layout.Machine}, 1},
+
+		// the snapshot task has run and the run went well
+		{"truenas_task_enabled", snapshots, 1},
+		{"truenas_task_running", snapshots, 0},
+		{"truenas_task_last_run_failed", snapshots, 0},
+		{"truenas_tasks_failed", map[string]string{"kind": "snapshot"}, 0},
+
+		// the replication is there, and is not running
+		{"truenas_task_enabled", replication, 1},
+		{"truenas_task_running", replication, 0},
+		{"truenas_tasks_failed", map[string]string{"kind": "replication"}, 0},
+
+		// the copy task is switched off, and the one run it had failed
+		{"truenas_task_enabled", copying, 0},
+		{"truenas_task_running", copying, 0},
+		{"truenas_task_last_run_failed", copying, 1},
+		{"truenas_tasks_failed", map[string]string{"kind": "rsync"}, 1},
+	} {
+		if got, ok := one(page, r.name, r.with); !ok || got != r.want {
+			t.Errorf("%s%v = %v (one reading: %t), want %v", r.name, r.with, got, ok, r.want)
+		}
+	}
+
+	// a task that ran says when, and one that never has says nothing of a last run: it has neither failed nor not
+	for _, ran := range []map[string]string{snapshots, copying} {
+		if got, ok := one(page, "truenas_task_last_run_timestamp_seconds", ran); !ok || got <= 0 {
+			t.Errorf("truenas_task_last_run_timestamp_seconds%v = %v (one reading: %t), want when it last ran", ran, got, ok)
+		}
+	}
+	for _, name := range []string{"truenas_task_last_run_failed", "truenas_task_last_run_timestamp_seconds"} {
+		if got, ok := one(page, name, replication); ok {
+			t.Errorf("%s%v = %v, want no such reading of a replication that has never run", name, replication, got)
+		}
+	}
+
+	// the copy that failed left an alert behind it, which is the one alert there is a kind to name for
+	if got, ok := one(page, "truenas_alerts_by_class", map[string]string{"class": "RsyncFailed"}); !ok || got < 1 {
+		t.Errorf("truenas_alerts_by_class of RsyncFailed = %v (one reading: %t), want the alert the failed copy raised", got, ok)
+	}
+
+	// the one disk that says how hot it is, and a temperature a disk could be at: not an empty answer read as 0, nor one in another unit
+	if got, ok := one(page, "truenas_disk_temperature_celsius", map[string]string{"serial": layout.HotDiskSerial}); !ok || got < 1 || got > 100 {
+		t.Errorf("truenas_disk_temperature_celsius of the disk %s = %v (one reading: %t), want a temperature in degrees Celsius", layout.HotDiskSerial, got, ok)
+	}
+	if got := len(readings(page, "truenas_disk_temperature_celsius")); got != 1 {
+		t.Errorf("%d disks with a temperature on the page, want only the one that gives one", got)
 	}
 
 	if t.Failed() {

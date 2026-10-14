@@ -13,6 +13,9 @@ import (
 // answer.
 type moment struct {
 	time.Time
+
+	// unzoned is a date in text that names no time zone, which the NAS writes in its own: in puts it there
+	unzoned bool
 }
 
 func (m *moment) UnmarshalJSON(b []byte) error {
@@ -40,14 +43,27 @@ func (m *moment) UnmarshalJSON(b []byte) error {
 		return nil //nolint:nilerr // neither a number nor text is a date not given
 	}
 
-	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05", "2006-01-02 15:04:05", time.ANSIC} {
-		if t, err := time.Parse(layout, text); err == nil {
-			m.Time = t.UTC()
+	for _, layout := range []struct {
+		layout string
+		zoned  bool
+	}{{time.RFC3339Nano, true}, {"2006-01-02T15:04:05", false}, {"2006-01-02 15:04:05", false}, {time.ANSIC, false}} {
+		if t, err := time.Parse(layout.layout, text); err == nil {
+			m.Time, m.unzoned = t.UTC(), !layout.zoned
 			break
 		}
 	}
 
 	return nil
+}
+
+// in is the time, with a date that named no time zone taken to be in this one: the NAS's own, where it writes such dates.
+func (m moment) in(zone *time.Location) time.Time {
+	if !m.unzoned {
+		return m.Time
+	}
+
+	t := m.Time
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), zone).UTC()
 }
 
 // number is a number the NAS writes as one or as text: a pool's fragmentation is "14" and a dataset's compression "1.04". Known is false for

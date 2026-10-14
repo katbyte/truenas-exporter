@@ -34,8 +34,9 @@ github.com/katbyte/go-kt/outside
 github.com/katbyte/go-kt/pmetrics
 github.com/katbyte/go-kt/pointer
 github.com/katbyte/go-kt/version
-# github.com/katbyte/truenas-mcp v0.0.0-20261013044356-72b4b1471ab4
+# github.com/katbyte/truenas-mcp v0.0.0-20261014022908-5344aba2685d
 ## explicit; go 1.27.0
+github.com/katbyte/truenas-mcp/acceptance/layout
 github.com/katbyte/truenas-mcp/sdk/truenasrpc
 github.com/katbyte/truenas-mcp/sdk/truenastest
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822

@@ -122,7 +122,8 @@ func (n *NAS) Shares(ctx context.Context) ([]poll.Share, error) {
 	return out, nil
 }
 
-// Certificates asks the NAS for the certificates it holds and when each runs out.
+// Certificates asks the NAS for the certificates it holds and when each runs out. The NAS writes those times in its own time zone without naming
+// it, so it is asked for its zone too.
 func (n *NAS) Certificates(ctx context.Context) ([]poll.Certificate, error) {
 	certificates, err := ask[[]struct {
 		Name  string `json:"name"`
@@ -132,9 +133,17 @@ func (n *NAS) Certificates(ctx context.Context) ([]poll.Certificate, error) {
 		return nil, err
 	}
 
+	info, err := ask[struct {
+		Zone string `json:"timezone"`
+	}](ctx, n, "system.info")
+	if err != nil {
+		return nil, err
+	}
+	zone := n.zone(info.Zone)
+
 	out := make([]poll.Certificate, 0, len(certificates))
 	for _, c := range certificates {
-		out = append(out, poll.Certificate{Name: c.Name, Expires: c.Until.Time})
+		out = append(out, poll.Certificate{Name: c.Name, Expires: c.Until.in(zone)})
 	}
 
 	return out, nil

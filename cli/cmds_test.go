@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/katbyte/go-kt/clog"
 	"github.com/katbyte/go-kt/pmetrics"
 	"github.com/katbyte/truenas-mcp/sdk/truenastest"
 	"github.com/katbyte/truenas-metrics/lib/poll"
@@ -445,6 +446,52 @@ func standIn(t *testing.T) (nas *truenastest.NAS, certFile string) {
 	return nas, certFile
 }
 
+// A replication's encryption key comes back from the NAS with the rest of what it says of the replication, even to a user who may only read, and
+// under a name a trace does not hide unasked. With the log turned all the way up every answer is written down, and the key must not be in it.
+//
+//nolint:paralleltest // viper is global state; Make mutates it
+func TestATraceNeverShowsAReplicationsEncryptionKey(t *testing.T) {
+	alone(t)
+
+	nas, certFile := standIn(t)
+	nas.Answer("replication.query", json.RawMessage(`[{"id": 1, "name": "the encrypted copy", "enabled": true, "state": {"state": "PENDING"}, "encryption": true, "encryption_key": "0123456789abcdef-what-unlocks-the-copy"}]`))
+
+	var log bytes.Buffer
+	level, out := clog.Log.GetLevel(), clog.Log.Out
+	clog.Log.SetOutput(&log)
+	clog.SetLevel("trace")
+	t.Cleanup(func() {
+		clog.Log.SetOutput(out)
+		clog.Log.SetLevel(level)
+	})
+
+	root, err := Make()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root.SetOut(io.Discard)
+	root.SetErr(io.Discard)
+	root.SetArgs([]string{"print", "--server", nas.Address(), "--username", nas.Username(), "--api-key", nas.Key(), "--certificate-file", certFile})
+
+	err = root.ExecuteContext(t.Context())
+
+	// nothing more is written to the log from here, so it can be read
+	clog.Log.SetOutput(out)
+	if err != nil {
+		t.Fatalf("print: %v", err)
+	}
+
+	if !strings.Contains(log.String(), "the encrypted copy") {
+		t.Fatalf("the log does not hold what the NAS said of its replications, so it says nothing of what a trace shows:\n%s", log.String())
+	}
+	if strings.Contains(log.String(), "what-unlocks-the-copy") {
+		t.Error("the log holds a replication's encryption key")
+	}
+	if strings.Contains(log.String(), nas.Key()) {
+		t.Error("the log holds the key the program logs in with")
+	}
+}
+
 // The program as it is shipped, against a NAS that speaks the real protocol: it logs in with the user and the key over TLS, knowing the NAS by
 // the certificate it was given, asks only for what it reads, and the page holds what the saved answers say. The key is on the page nowhere.
 //
@@ -486,7 +533,7 @@ func TestPrintAgainstANASThatSpeaksTheAPI(t *testing.T) {
 		`truenas_apps_service_status{status="UNCONFIGURED"} 1`, `truenas_vms{state="RUNNING"} 1`,
 		`truenas_tasks{kind="rsync"} 4`, `truenas_tasks_failed{kind="rsync"} 2`, `truenas_task_running{id="5",kind="cloud_sync",name="description-3"} 1`,
 		`truenas_shares{protocol="smb",state="enabled"} 3`, `truenas_shares{protocol="nfs",state="locked"} 1`,
-		`truenas_certificate_expiry_timestamp_seconds{certificate="truenas_default"} 1.8043218e+09`,
+		`truenas_certificate_expiry_timestamp_seconds{certificate="truenas_default"} 1.8043506e+09`,
 		`truenas_interface_link_up{interface="enp1s0",type="PHYSICAL"} 1`, `truenas_update_available 0`, `truenas_api_key_expiry_timestamp_seconds 1.822536e+09`,
 	} {
 		if !strings.Contains(page, want) {

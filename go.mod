@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	github.com/gookit/color v1.6.1
 	github.com/katbyte/go-kt v0.7.0
-	github.com/katbyte/truenas-mcp v0.0.0-20261013044356-72b4b1471ab4
+	github.com/katbyte/truenas-mcp v0.0.0-20261014022908-5344aba2685d
 	github.com/prometheus/client_golang v1.25.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10

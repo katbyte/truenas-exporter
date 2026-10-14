@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/katbyte/go-kt/clog"
 	"github.com/katbyte/truenas-metrics/lib/poll"
@@ -33,6 +34,9 @@ type NAS struct {
 
 	// missing is the methods the NAS has been found not to have, so each is logged once and not at every round.
 	missing sync.Map
+
+	// unknownZones is the time zones the NAS has named that this machine does not know, so each is logged once.
+	unknownZones sync.Map
 }
 
 // NAS answers every question the poller has.
@@ -63,4 +67,18 @@ func ask[T any](ctx context.Context, n *NAS, method string, params ...any) (T, e
 	}
 
 	return answer, fmt.Errorf("%s: %w", method, err)
+}
+
+// zone is the time zone the NAS names, or UTC for one this machine does not know, which is said once.
+func (n *NAS) zone(name string) *time.Location {
+	zone, err := time.LoadLocation(name)
+	if err == nil {
+		return zone
+	}
+
+	if _, told := n.unknownZones.LoadOrStore(name, true); !told {
+		clog.Log.Warnf("this machine does not know the NAS's time zone %q, so when its certificates run out is read as if it were UTC: %v", name, err)
+	}
+
+	return time.UTC
 }

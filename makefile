@@ -206,13 +206,15 @@ testnas: ## Fetch truenas-mcp's test environment into .testnas, at the version o
 		git -C .testnas log --oneline -1
 
 # testacc runs the live tests against a throwaway TrueNAS of its own: the test environment installs one in a virtual machine and sets it up with a
-# pool and a read-only user, the suite is run against it as that user, and the machine is removed. it needs qemu and an x86-64 Linux machine with
-# /dev/kvm, which a GitHub runner is and a Mac is not: the acceptance workflow runs it
+# pool and a read-only user, the suite is run against it as that user, and the machine is removed. TRUENAS_TEST_FURNISHED=1 asks the test
+# environment to also give the NAS a share of each kind, a virtual machine and tasks that ran, never ran and failed, and tells the suite to look
+# for them. it needs qemu and an x86-64 Linux machine with /dev/kvm, which a GitHub runner is and a Mac is not: the acceptance workflow runs it
 testacc: $(if $(filter .testnas,$(TRUENAS_MCP)),testnas) ## Run the live tests against a throwaway TrueNAS in a virtual machine (needs qemu and /dev/kvm)
 	@[ -x "$(TRUENAS_MCP)/.scripts/testenv.sh" ] || (echo 'no truenas-mcp checkout at $(TRUENAS_MCP): its .scripts/testenv.sh is what makes the test NAS'; exit 1)
 	@echo "==> live tests..."
 	@set -e; \
 		env="$(CURDIR)/.testenv.sh"; \
+		export TRUENAS_TEST_FURNISHED=1; \
 		trap 'st=$$?; [ $$st -eq 0 ] || $(TRUENAS_MCP)/.scripts/testenv.sh logs || true; $(TRUENAS_MCP)/.scripts/testenv.sh down; rm -f '"$$env"'; exit $$st' EXIT; \
 		$(TRUENAS_MCP)/.scripts/testenv.sh up > "$$env"; \
 		. "$$env"; \

@@ -141,7 +141,7 @@ The code is written with Claude Code. I review it, then prune or rework it until
 What CI holds it to:
 
 - **Tests.** Unit tests run under the race detector. The whole page is saved and compared. A test fails if the program calls anything but its list of read-only methods.
-- **Live tests.** CI installs a real TrueNAS in a virtual machine and checks the page against what that NAS says. So far that NAS is a healthy one with a single pool: no apps, virtual machines, replication or failing disks.
+- **Live tests.** CI installs a real TrueNAS in a virtual machine and checks the page against what that NAS says. That NAS has a pool, a share of each kind, a virtual machine that is not running, and tasks that ran, never ran and failed. It has no apps, cloud tasks or failing disks.
 - **Lint.** golangci-lint, markdownlint, typos, yamllint, shellcheck and actionlint.
 - **Security.** CodeQL, govulncheck, Trivy on the built program, and zizmor on the workflows.
 

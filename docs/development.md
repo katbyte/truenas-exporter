@@ -28,7 +28,7 @@ Dependencies are vendored. The dev tools are pinned in `.tools/go.mod` and the m
 
 ## The live tests
 
-`make test-live` runs the program against a real TrueNAS. It holds the page to what that NAS says when asked directly: every pool and its status, every disk by serial number, every dataset and service, and as many alerts, tasks and shares as it lists.
+`make test-live` runs the program against a real TrueNAS. It holds the page to what that NAS says when asked directly: every pool and its status, every disk by serial number and temperature, every dataset, service and virtual machine, and as many alerts, tasks and shares as it lists.
 
 It only reads and knows nothing of the NAS beforehand, so any TrueNAS will do. Name the NAS first, logging in as the read-only user the program is meant to run as:
 
@@ -48,8 +48,11 @@ A `.testenv.sh` holding those lines is ignored by git, as is any `.pem`.
 
 1. fetches [truenas-mcp](https://github.com/katbyte/truenas-mcp)'s test environment into `.testnas`, at the version `go.mod` names
 2. has it install TrueNAS in a virtual machine, with a pool and a read-only user
-3. runs the live tests against it as that user
-4. removes the machine
+3. has it furnish that NAS: a share of each kind, a virtual machine, a disk that gives a temperature, and tasks that ran, never ran and failed
+4. runs the live tests against it as that user
+5. removes the machine
+
+On a furnished NAS one more test runs. It looks for each of those things on the page by name, so a reading is not passed for being empty on both sides.
 
 It needs qemu and an x86-64 Linux machine with `/dev/kvm`. TrueNAS has no build for a Mac's processor. The first run installs TrueNAS, which takes about ten minutes. Later runs start from the installed disk.
 

@@ -11,8 +11,9 @@ import (
 // connect makes the connection the NAS is asked over: truenas-mcp's, which dials on the first question, logs in with the key, and dials again
 // whenever the NAS has gone away and come back.
 func connect(c connection) (poll.NAS, func(), error) {
-	// the NAS writes who called it in its audit log
-	opts := []truenasrpc.Option{truenasrpc.WithLog(clog.Log), truenasrpc.WithUserAgent(toolName + "/" + version.Version)}
+	// the NAS writes who called it in its audit log. with the log turned all the way up every answer is written down, and a replication's answer
+	// holds its encryption key under a name that is not hidden unasked
+	opts := []truenasrpc.Option{truenasrpc.WithLog(clog.Log), truenasrpc.WithSecretNames("encryption_key"), truenasrpc.WithUserAgent(toolName + "/" + version.Version)}
 
 	if c.certFile != "" {
 		opts = append(opts, truenasrpc.WithCertificateFile(c.certFile))
