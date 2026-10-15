@@ -86,6 +86,7 @@ Each setting is a flag, an environment variable or a line in a settings file. [d
 | `TRUENAS_METRICS_LISTEN` | `--listen` | where the page is served, default `:9089` |
 | `TRUENAS_METRICS_LABELS` | `--labels` | labels for every reading, as `name=value,name=value` |
 | `TRUENAS_METRICS_INTERVALS` | `--intervals` | how often to ask about a part, like `snapshots=30m` |
+| `TRUENAS_METRICS_CLOCK_CORRECTION` | `--clock-correction` | added to the NAS's clock, default `500ms` |
 | `TRUENAS_METRICS_DATASET_DEPTH` | `--dataset-depth` | how deep datasets are named, default `1` |
 | `TRUENAS_METRICS_METRICS` | `--metrics` | the parts to ask about, like `pools,disks`; default all |
 | `TRUENAS_METRICS_SKIP` | `--skip` | parts to leave out, like `apps,vms` |

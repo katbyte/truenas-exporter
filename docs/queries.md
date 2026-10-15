@@ -18,6 +18,7 @@ truenas_service_enabled == 1 and truenas_service_running == 0      # a service t
 truenas_certificate_expiry_timestamp_seconds - time() < 14 * 86400 # a certificate runs out within two weeks
 truenas_api_key_expiry_timestamp_seconds - time() < 14 * 86400     # so does the key this uses
 truenas_disk_temperature_celsius > 50                              # a disk is hot
+abs(truenas_system_clock_offset_seconds) > 2                       # the NAS's clock has wandered
 ```
 
 ## Joining on a disk's serial number

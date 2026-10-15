@@ -36,5 +36,5 @@ func connect(c connection) (poll.NAS, func(), error) {
 		return nil, nil, err
 	}
 
-	return nas.New(conn, nas.Options{NoSuchMethod: truenasrpc.IsNoSuchMethod}), func() { _ = conn.Close() }, nil
+	return nas.New(conn, nas.Options{NoSuchMethod: truenasrpc.IsNoSuchMethod, ClockCorrection: c.clockCorrection}), func() { _ = conn.Close() }, nil
 }

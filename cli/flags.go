@@ -21,23 +21,28 @@ import (
 // toolName is what the program is called, on the page's front and in its help.
 const toolName = "truenas-metrics"
 
-// defaultListen is where the page is served unless the settings say otherwise.
-const defaultListen = ":9089"
+// The defaults: where the page is served, and what is added to the NAS's clock, which it gives to the whole second, to put the reading of it in
+// the middle of where the time could be.
+const (
+	defaultListen          = ":9089"
+	defaultClockCorrection = 500 * time.Millisecond
+)
 
 type FlagData struct {
-	Server               string `mapstructure:"server"`
-	Username             string `mapstructure:"username"`
-	APIKey               string `mapstructure:"api-key"`
-	CertificateFile      string `mapstructure:"certificate-file"`
-	CAFile               string `mapstructure:"ca-file"`
-	SkipCertificateCheck bool   `mapstructure:"skip-certificate-check"`
-	SendKeyUnchecked     bool   `mapstructure:"send-key-unchecked"`
-	Listen               string `mapstructure:"listen"`
-	Labels               string `mapstructure:"labels"`
-	DatasetDepth         int    `mapstructure:"dataset-depth"`
-	Metrics              string `mapstructure:"metrics"`
-	Skip                 string `mapstructure:"skip"`
-	Intervals            string `mapstructure:"intervals"`
+	Server               string        `mapstructure:"server"`
+	Username             string        `mapstructure:"username"`
+	APIKey               string        `mapstructure:"api-key"`
+	CertificateFile      string        `mapstructure:"certificate-file"`
+	CAFile               string        `mapstructure:"ca-file"`
+	SkipCertificateCheck bool          `mapstructure:"skip-certificate-check"`
+	SendKeyUnchecked     bool          `mapstructure:"send-key-unchecked"`
+	Listen               string        `mapstructure:"listen"`
+	Labels               string        `mapstructure:"labels"`
+	DatasetDepth         int           `mapstructure:"dataset-depth"`
+	Metrics              string        `mapstructure:"metrics"`
+	Skip                 string        `mapstructure:"skip"`
+	Intervals            string        `mapstructure:"intervals"`
+	ClockCorrection      time.Duration `mapstructure:"clock-correction"`
 }
 
 // envNames binds each flag to its environment variable.
@@ -55,6 +60,7 @@ var envNames = map[string]string{
 	"metrics":                "TRUENAS_METRICS_METRICS",
 	"skip":                   "TRUENAS_METRICS_SKIP",
 	"intervals":              "TRUENAS_METRICS_INTERVALS",
+	"clock-correction":       "TRUENAS_METRICS_CLOCK_CORRECTION",
 }
 
 // persistent is the flag set configureFlags bound, for the one setting that has to be read before viper is: where the settings file is.
@@ -76,6 +82,7 @@ func configureFlags(root *cobra.Command) error {
 	pflags.String("metrics", "", "the parts of the NAS to ask about and no others, with commas between them: "+areaNames(poll.Areas)+"; every one unless set, and the NAS's own state always")
 	pflags.String("skip", "", "leave these parts of the NAS out of those --metrics names, named as for it: apps,vms say; nothing of them is on the page")
 	pflags.String("intervals", "", "how often to ask about some parts of the NAS, as part=duration with commas between them: snapshots=30m,apps=1m say; unset, "+defaultsSaid())
+	pflags.Duration("clock-correction", defaultClockCorrection, "added to the time the NAS gives before it is held to this machine's clock: a TrueNAS gives it to the whole second, so half a second centres the reading; 0 for a NAS that gives it finer")
 	pflags.String("config", "", "read settings from this file and no other, in place of ./.truenas-metrics or ~/.truenas-metrics (or export TRUENAS_METRICS_CONFIG)")
 
 	persistent = pflags
@@ -174,6 +181,8 @@ type connection struct {
 	skipCheck bool
 	// sendUnchecked has the key sent to a NAS whose certificate was not checked, which only an older TrueNAS asks for.
 	sendUnchecked bool
+	// clockCorrection is added to the time the NAS gives, as nas.Options says.
+	clockCorrection time.Duration
 }
 
 // connector makes what asks the NAS its questions, and what closes the connection it asks them over. Nothing is sent until the first question.
@@ -207,7 +216,7 @@ func (f *FlagData) connection() (connection, error) {
 		return connection{}, fmt.Errorf("--dataset-depth (%s) cannot be less than 0, which is each pool's own dataset: %d", envNames["dataset-depth"], f.DatasetDepth)
 	}
 
-	return connection{server: f.Server, username: f.Username, key: f.APIKey, certFile: f.CertificateFile, caFile: f.CAFile, skipCheck: f.SkipCertificateCheck, sendUnchecked: f.SendKeyUnchecked}, nil
+	return connection{server: f.Server, username: f.Username, key: f.APIKey, certFile: f.CertificateFile, caFile: f.CAFile, skipCheck: f.SkipCertificateCheck, sendUnchecked: f.SendKeyUnchecked, clockCorrection: f.ClockCorrection}, nil
 }
 
 // skipped is the parts of the NAS the settings leave unasked: those --metrics does not name, when it names any, and those --skip names. A word that

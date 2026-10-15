@@ -36,7 +36,7 @@ Every reading starts `truenas_`. Statuses, states and levels are spelled as True
 | `truenas_directory_service_healthy` | `type`, `status` | 1 when the joined directory is healthy |
 | `truenas_api_key_expiry_timestamp_seconds` | | when this program's key expires, if it does |
 
-- The clock offset is good to within a second.
+- The NAS gives its time to the whole second, so half a second is added to centre the clock offset, which is then good to within half a second. `--clock-correction` changes what is added.
 - The directory reading is only there on a NAS joined to a directory.
 
 ## Pools

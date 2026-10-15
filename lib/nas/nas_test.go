@@ -194,6 +194,15 @@ func TestSystem(t *testing.T) {
 			Booted: at(1790938328000), Uptime: time.Duration(911259.272104045 * float64(time.Second)), Memory: 270262870016, Cores: 32, PhysicalCores: 32,
 			Load: [3]float64{0.35546875, 0.36083984375, 0.48193359375}, ECC: true, ClockOffset: time.Until(at(1791849587000)),
 		})
+
+		// the NAS gives its time to the whole second, so what is added to centre it is added before the two clocks are held together
+		corrected, err := nas.New(&canned{}, nas.Options{ClockCorrection: 500 * time.Millisecond}).System(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := time.Until(at(1791849587000)) + 500*time.Millisecond; corrected.ClockOffset != want {
+			t.Errorf("clock offset with half a second added = %s, want %s", corrected.ClockOffset, want)
+		}
 	})
 }
 

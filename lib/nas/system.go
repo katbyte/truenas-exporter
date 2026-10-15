@@ -42,7 +42,7 @@ func (n *NAS) System(ctx context.Context) (poll.System, error) {
 
 	// the NAS read its clock somewhere between the question leaving and the answer arriving: halfway is the best guess there is
 	if !info.Datetime.IsZero() {
-		s.ClockOffset = info.Datetime.Sub(asked.Add(answered.Sub(asked) / 2))
+		s.ClockOffset = info.Datetime.Add(n.o.ClockCorrection).Sub(asked.Add(answered.Sub(asked) / 2))
 	}
 
 	return s, nil

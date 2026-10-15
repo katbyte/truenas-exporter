@@ -28,6 +28,9 @@ type Options struct {
 	// may not. Such a method is answered as if the NAS had nothing to say, so that one missing method does not cost the rest of the page. Left
 	// unset, it is a failure like any other.
 	NoSuchMethod func(error) bool
+	// ClockCorrection is added to the time the NAS gives before it is held to this machine's clock. A TrueNAS gives its time to the whole second,
+	// dropping the rest, so half a second puts the reading in the middle of where the time could be.
+	ClockCorrection time.Duration
 }
 
 // NAS is one TrueNAS, asked through a Caller.

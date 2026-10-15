@@ -94,8 +94,8 @@ func TestDefaults(t *testing.T) {
 
 	f := must(t)
 	every, err := f.intervals()
-	if err != nil || f.Listen != ":9089" || every[poll.AreaSystem] != 30*time.Second || every[poll.AreaDisks] != 5*time.Minute || every[poll.AreaSnapshots] != 10*time.Minute || f.DatasetDepth != 1 {
-		t.Errorf("defaults = %s, every %s, %s and %s (%v), datasets %d deep; want :9089, 30s, 5m, 10m and 1", f.Listen, every[poll.AreaSystem], every[poll.AreaDisks], every[poll.AreaSnapshots], err, f.DatasetDepth)
+	if err != nil || f.Listen != ":9089" || every[poll.AreaSystem] != 30*time.Second || every[poll.AreaDisks] != 5*time.Minute || every[poll.AreaSnapshots] != 10*time.Minute || f.DatasetDepth != 1 || f.ClockCorrection != 500*time.Millisecond {
+		t.Errorf("defaults = %s, every %s, %s and %s (%v), datasets %d deep, the clock corrected by %s; want :9089, 30s, 5m, 10m, 1 and 500ms", f.Listen, every[poll.AreaSystem], every[poll.AreaDisks], every[poll.AreaSnapshots], err, f.DatasetDepth, f.ClockCorrection)
 	}
 	if f.Server != "" || f.Username != "" || f.APIKey != "" || f.CertificateFile != "" || f.CAFile != "" || f.SkipCertificateCheck || f.SendKeyUnchecked || f.Labels != "" || f.Metrics != "" || f.Skip != "" || f.Intervals != "" {
 		t.Errorf("a NAS, a certificate, a label, a part of the NAS to leave out or an interval is set with nothing given: %+v", f)
@@ -119,10 +119,11 @@ func TestEveryFlagHasAnEnvironmentVariable(t *testing.T) {
 	t.Setenv("TRUENAS_METRICS_METRICS", "pools,disks")
 	t.Setenv("TRUENAS_METRICS_SKIP", "disks")
 	t.Setenv("TRUENAS_METRICS_INTERVALS", "snapshots=30m")
+	t.Setenv("TRUENAS_METRICS_CLOCK_CORRECTION", "250ms")
 
 	want := FlagData{
 		Server: testServer, Username: testUser, APIKey: testKey, CertificateFile: "/etc/nas.pem", CAFile: "/etc/authority.pem", SkipCertificateCheck: true, SendKeyUnchecked: true,
-		Listen: "127.0.0.1:9000", Labels: "hostname=nas", DatasetDepth: 3, Metrics: "pools,disks", Skip: "disks", Intervals: "snapshots=30m",
+		Listen: "127.0.0.1:9000", Labels: "hostname=nas", DatasetDepth: 3, Metrics: "pools,disks", Skip: "disks", Intervals: "snapshots=30m", ClockCorrection: 250 * time.Millisecond,
 	}
 	if got := *must(t); got != want {
 		t.Errorf("from the environment = %+v, want %+v", got, want)
@@ -216,13 +217,13 @@ func TestANamedSettingsFile(t *testing.T) {
 func TestConnection(t *testing.T) {
 	t.Parallel()
 
-	whole := FlagData{Server: testServer, Username: testUser, APIKey: testKey, CertificateFile: "/etc/nas.pem", DatasetDepth: 1}
+	whole := FlagData{Server: testServer, Username: testUser, APIKey: testKey, CertificateFile: "/etc/nas.pem", DatasetDepth: 1, ClockCorrection: 250 * time.Millisecond}
 
 	got, err := whole.connection()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (connection{server: testServer, username: testUser, key: testKey, certFile: "/etc/nas.pem"}); got != want {
+	if want := (connection{server: testServer, username: testUser, key: testKey, certFile: "/etc/nas.pem", clockCorrection: 250 * time.Millisecond}); got != want {
 		t.Errorf("connection = %+v, want %+v", got, want)
 	}
 
