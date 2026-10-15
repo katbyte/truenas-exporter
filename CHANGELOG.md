@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 (2026-10-14)
+
+- **The NAS's clock reading is centred.** TrueNAS gives its time to the whole second, so `truenas_system_clock_offset_seconds` read 0 to 1 second low. Half a second is now added, which `--clock-correction` changes.
+- **The certificate file is optional in the Docker example.** A NAS reached by a name whose certificate is already trusted, through a proxy say, needs none.
+
 ## 0.1.0 (2026-10-14)
 
 The first release: a metrics page for a TrueNAS.
