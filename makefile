@@ -209,6 +209,8 @@ testnas: ## Fetch truenas-mcp's test environment into .testnas, at the version o
 # pool and a read-only user, the suite is run against it as that user, and the machine is removed. TRUENAS_TEST_FURNISHED=1 asks the test
 # environment to also give the NAS a share of each kind, a virtual machine and tasks that ran, never ran and failed, and tells the suite to look
 # for them. it needs qemu and an x86-64 Linux machine with /dev/kvm, which a GitHub runner is and a Mac is not: the acceptance workflow runs it
+# testenv.sh at the truenas-mcp version go.mod names prints TRUENAS_METRICS_TEST_*, the names from before the rename; they are carried across to
+# TRUENAS_EXPORTER_TEST_* until it prints those itself. A run that names no NAS stops, since the live tests would otherwise only skip and pass.
 testacc: $(if $(filter .testnas,$(TRUENAS_MCP)),testnas) ## Run the live tests against a throwaway TrueNAS in a virtual machine (needs qemu and /dev/kvm)
 	@[ -x "$(TRUENAS_MCP)/.scripts/testenv.sh" ] || (echo 'no truenas-mcp checkout at $(TRUENAS_MCP): its .scripts/testenv.sh is what makes the test NAS'; exit 1)
 	@echo "==> live tests..."
@@ -218,6 +220,9 @@ testacc: $(if $(filter .testnas,$(TRUENAS_MCP)),testnas) ## Run the live tests a
 		trap 'st=$$?; [ $$st -eq 0 ] || $(TRUENAS_MCP)/.scripts/testenv.sh logs || true; $(TRUENAS_MCP)/.scripts/testenv.sh down; rm -f '"$$env"'; exit $$st' EXIT; \
 		$(TRUENAS_MCP)/.scripts/testenv.sh up > "$$env"; \
 		. "$$env"; \
+		: "$${TRUENAS_EXPORTER_TEST_SERVER:=$${TRUENAS_METRICS_TEST_SERVER:-}}" "$${TRUENAS_EXPORTER_TEST_USERNAME:=$${TRUENAS_METRICS_TEST_USERNAME:-}}" "$${TRUENAS_EXPORTER_TEST_API_KEY:=$${TRUENAS_METRICS_TEST_API_KEY:-}}" "$${TRUENAS_EXPORTER_TEST_CERTIFICATE_FILE:=$${TRUENAS_METRICS_TEST_CERTIFICATE_FILE:-}}"; \
+		export TRUENAS_EXPORTER_TEST_SERVER TRUENAS_EXPORTER_TEST_USERNAME TRUENAS_EXPORTER_TEST_API_KEY TRUENAS_EXPORTER_TEST_CERTIFICATE_FILE; \
+		[ -n "$$TRUENAS_EXPORTER_TEST_SERVER" ] && [ -n "$$TRUENAS_EXPORTER_TEST_API_KEY" ] || { echo 'testenv.sh up named no NAS to test against, so the live tests would only have skipped'; exit 1; }; \
 		go test -tags acceptance -count=1 ./acceptance/ -timeout ${TEST_TIMEOUT} -v
 
 # coverage is written under .coverage (gitignored); the coverage workflow reads the total
