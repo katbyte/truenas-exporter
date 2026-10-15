@@ -11,8 +11,8 @@ import (
 
 	"github.com/katbyte/go-kt/pmetrics"
 	"github.com/katbyte/go-kt/pointer"
-	"github.com/katbyte/truenas-metrics/lib/poll"
-	"github.com/katbyte/truenas-metrics/lib/readings"
+	"github.com/katbyte/truenas-exporter/lib/poll"
+	"github.com/katbyte/truenas-exporter/lib/readings"
 	"github.com/prometheus/client_golang/prometheus/testutil/promlint"
 )
 
@@ -147,7 +147,7 @@ func down() *fixed {
 func page(t *testing.T, source readings.Source, depth int, labels map[string]string) string {
 	t.Helper()
 
-	p, err := pmetrics.New(pmetrics.Options{Name: "truenas-metrics", Namespace: readings.Namespace, Labels: labels}, readings.New(source, readings.Options{DatasetDepth: depth}))
+	p, err := pmetrics.New(pmetrics.Options{Name: "truenas-exporter", Namespace: readings.Namespace, Labels: labels}, readings.New(source, readings.Options{DatasetDepth: depth}))
 	if err != nil {
 		t.Fatal(err)
 	}

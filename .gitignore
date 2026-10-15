@@ -2,13 +2,14 @@
 .DS_Store
 .idea/
 dist/
+/truenas-exporter
 /truenas-metrics
 .tools/bin/
 .tools/venv/
 .tools/npm/
 __pycache__/
 .env
-.truenas-metrics
+.truenas-exporter
 .coverage/
 .capture/
 go.work

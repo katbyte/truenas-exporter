@@ -1,4 +1,4 @@
-// Package cli implements the truenas-metrics command line interface: the cobra commands, flag and config handling, and the server that serves the
+// Package cli implements the truenas-exporter command line interface: the cobra commands, flag and config handling, and the server that serves the
 // metrics page.
 package cli
 
@@ -17,27 +17,27 @@ func Make() (*cobra.Command, error) {
 // makeWith is Make with the NAS's client made by connect, so a test can stand in for a NAS.
 func makeWith(connect connector) (*cobra.Command, error) {
 	root := &cobra.Command{
-		Use:   "truenas-metrics [command]",
-		Short: "truenas-metrics reports what a TrueNAS says about itself as a Prometheus metrics page",
+		Use:   "truenas-exporter [command]",
+		Short: "truenas-exporter reports what a TrueNAS says about itself as a Prometheus metrics page",
 		Long: `Reports what a TrueNAS says about itself as a Prometheus metrics page: the health of its
 pools and the errors against each disk, scrubs and resilvers, space by dataset, snapshots,
 alerts, how its scheduled tasks last went, services, apps and virtual machines. It only
 ever asks the NAS questions, over its API.
-Complete documentation is available at https://github.com/katbyte/truenas-metrics`,
+Complete documentation is available at https://github.com/katbyte/truenas-exporter`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Run \"truenas-metrics help\" for more information about available truenas-metrics commands.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Run \"truenas-exporter help\" for more information about available truenas-exporter commands.")
 			return nil
 		},
 	}
 
 	root.AddCommand(&cobra.Command{
 		Use:           "version",
-		Short:         "Print the version number of truenas-metrics",
-		Long:          `Print the version number of truenas-metrics`,
+		Short:         "Print the version number of truenas-exporter",
+		Long:          `Print the version number of truenas-exporter`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		Run: func(cmd *cobra.Command, _ []string) {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "truenas-metrics "+version.Version)
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "truenas-exporter "+version.Version)
 		},
 	})
 

@@ -1,5 +1,5 @@
 # build with the vendored deps, then ship the static binary on alpine: small, but keeps a shell
-# so you can `docker exec -it truenas-metrics sh` to poke at things. runs as a non-root user.
+# so you can `docker exec -it truenas-exporter sh` to poke at things. runs as a non-root user.
 # make docker passes VERSION/COMMIT from git; a bare `docker build .` reports "dev".
 #
 # REGISTRY is where the two base images come from: Google's mirror of Docker Hub, which holds
@@ -20,18 +20,18 @@ RUN CGO_ENABLED=0 go build -trimpath -mod=vendor \
       -ldflags "-s -w \
         -X github.com/katbyte/go-kt/version.Version=${VERSION} \
         -X github.com/katbyte/go-kt/version.GitCommit=${COMMIT}" \
-      -o /truenas-metrics .
+      -o /truenas-exporter .
 
 FROM ${REGISTRY}/alpine:${ALPINE_VERSION}
 RUN apk add --no-cache ca-certificates tzdata \
     && adduser -D -H -u 65532 truenas
-COPY --from=build /truenas-metrics /usr/local/bin/truenas-metrics
+COPY --from=build /truenas-exporter /usr/local/bin/truenas-exporter
 USER truenas
-# set TRUENAS_METRICS_SERVER, TRUENAS_METRICS_USERNAME and TRUENAS_METRICS_API_KEY at runtime.
+# set TRUENAS_EXPORTER_SERVER, TRUENAS_EXPORTER_USERNAME and TRUENAS_EXPORTER_API_KEY at runtime.
 # the healthcheck assumes the default port.
-ENV TRUENAS_METRICS_LISTEN=:9089
+ENV TRUENAS_EXPORTER_LISTEN=:9089
 EXPOSE 9089
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD wget -q --spider http://127.0.0.1:9089/healthz || exit 1
-ENTRYPOINT ["truenas-metrics"]
+ENTRYPOINT ["truenas-exporter"]
 CMD ["serve"]

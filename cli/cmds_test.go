@@ -16,9 +16,9 @@ import (
 
 	"github.com/katbyte/go-kt/clog"
 	"github.com/katbyte/go-kt/pmetrics"
+	"github.com/katbyte/truenas-exporter/lib/poll"
+	"github.com/katbyte/truenas-exporter/lib/poll/polltest"
 	"github.com/katbyte/truenas-mcp/sdk/truenastest"
-	"github.com/katbyte/truenas-metrics/lib/poll"
-	"github.com/katbyte/truenas-metrics/lib/poll/polltest"
 	"github.com/spf13/cobra"
 )
 
@@ -102,7 +102,7 @@ func TestVersionCommand(t *testing.T) {
 	alone(t)
 
 	out, err := run(t, stood(&polltest.NAS{}, nil), "version")
-	if err != nil || !strings.HasPrefix(out, "truenas-metrics ") {
+	if err != nil || !strings.HasPrefix(out, "truenas-exporter ") {
 		t.Errorf("version printed %q (%v), want the name and a version", out, err)
 	}
 }
@@ -114,7 +114,7 @@ func TestNoCommandPointsAtHelp(t *testing.T) {
 	alone(t)
 
 	out, err := run(t, stood(&polltest.NAS{}, nil))
-	if err != nil || !strings.Contains(out, "truenas-metrics help") {
+	if err != nil || !strings.Contains(out, "truenas-exporter help") {
 		t.Errorf("no command printed %q (%v), want a pointer to help", out, err)
 	}
 }
@@ -216,7 +216,7 @@ func TestMetricsAndSkipSayWhatIsAsked(t *testing.T) {
 
 	var connected bool
 	_, err := run(t, func(connection) (poll.NAS, func(), error) { connected = true; return answers(), func() {}, nil }, to("print", "--skip", "smart")...)
-	if err == nil || !strings.Contains(err.Error(), "TRUENAS_METRICS_SKIP") || connected {
+	if err == nil || !strings.Contains(err.Error(), "TRUENAS_EXPORTER_SKIP") || connected {
 		t.Errorf("--skip smart = %v, connected %t; want it refused naming the setting, before connecting", err, connected)
 	}
 }
@@ -258,7 +258,7 @@ func TestALabelThatCannotBeUsed(t *testing.T) {
 			var closed int
 
 			_, err := run(t, stood(nas, &closed), to(command, "--listen", "127.0.0.1:0", "--labels", labels)...)
-			if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), "TRUENAS_METRICS_LABELS") {
+			if err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), "TRUENAS_EXPORTER_LABELS") {
 				t.Errorf("%s --labels %s = %v, want an error naming %q and the setting", command, labels, err, want)
 			}
 			if asked := nas.Asked(polltest.Pools) + nas.Asked(polltest.Disks); asked != 0 {
@@ -309,10 +309,10 @@ func TestPrintFailsWhenTheNASDoesNotAnswer(t *testing.T) {
 func TestACommandNeedsANASAUserAndAKey(t *testing.T) {
 	for _, command := range []string{"print", "serve"} {
 		for given, missing := range map[string]string{
-			"":                                   "TRUENAS_METRICS_SERVER",
-			"--server nas":                       "TRUENAS_METRICS_USERNAME",
-			"--server nas --username metrics":    "TRUENAS_METRICS_API_KEY",
-			"--username metrics --api-key 3-key": "TRUENAS_METRICS_SERVER",
+			"":                                   "TRUENAS_EXPORTER_SERVER",
+			"--server nas":                       "TRUENAS_EXPORTER_USERNAME",
+			"--server nas --username metrics":    "TRUENAS_EXPORTER_API_KEY",
+			"--username metrics --api-key 3-key": "TRUENAS_EXPORTER_SERVER",
 		} {
 			alone(t)
 
@@ -703,7 +703,7 @@ func TestSkippingTheCertificateCheckDoesNotHandOverTheKeyUnlessTold(t *testing.T
 	for _, wrong := range [][]string{{"--send-key-unchecked"}, {"--skip-certificate-check", "--certificate-file", certFile}} {
 		alone(t)
 
-		if _, err := printed(t, append(reach, wrong...)...); err == nil || !strings.Contains(err.Error(), "TRUENAS_METRICS_SKIP_CERTIFICATE_CHECK") || nas.Dials() != dials {
+		if _, err := printed(t, append(reach, wrong...)...); err == nil || !strings.Contains(err.Error(), "TRUENAS_EXPORTER_SKIP_CERTIFICATE_CHECK") || nas.Dials() != dials {
 			t.Errorf("print %v = %v after %d more dials, want it refused naming the settings and the NAS not dialled", wrong, err, nas.Dials()-dials)
 		}
 	}

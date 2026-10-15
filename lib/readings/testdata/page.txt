@@ -15,7 +15,7 @@ truenas_alerts_by_class{class="VolumeStatus",level="CRITICAL"} 1
 # HELP truenas_alerts_dismissed Alerts somebody has dismissed that the NAS still holds.
 # TYPE truenas_alerts_dismissed gauge
 truenas_alerts_dismissed 1
-# HELP truenas_api_key_expiry_timestamp_seconds When the API key truenas-metrics uses stops working, in seconds since 1970. Only for a key that expires.
+# HELP truenas_api_key_expiry_timestamp_seconds When the API key truenas-exporter uses stops working, in seconds since 1970. Only for a key that expires.
 # TYPE truenas_api_key_expiry_timestamp_seconds gauge
 truenas_api_key_expiry_timestamp_seconds 9.492768e+08
 # HELP truenas_app_state Always 1, with the state of each installed app.
@@ -152,7 +152,7 @@ truenas_poll_duration_seconds{poll="system"} 0.25
 truenas_poll_duration_seconds{poll="tasks"} 3
 truenas_poll_duration_seconds{poll="updates"} 0.25
 truenas_poll_duration_seconds{poll="vms"} 0.25
-# HELP truenas_poll_failures_total How many polls of each part of the NAS have failed since truenas-metrics started.
+# HELP truenas_poll_failures_total How many polls of each part of the NAS have failed since truenas-exporter started.
 # TYPE truenas_poll_failures_total counter
 truenas_poll_failures_total{poll="alerts"} 0
 truenas_poll_failures_total{poll="apps"} 0
@@ -418,7 +418,7 @@ truenas_snapshots{pool="tank"} 132
 # HELP truenas_system_boot_timestamp_seconds When the NAS last started, in seconds since 1970.
 # TYPE truenas_system_boot_timestamp_seconds gauge
 truenas_system_boot_timestamp_seconds 9.458208e+08
-# HELP truenas_system_clock_offset_seconds The NAS's clock less the clock of the machine running truenas-metrics, when it was last asked.
+# HELP truenas_system_clock_offset_seconds The NAS's clock less the clock of the machine running truenas-exporter, when it was last asked.
 # TYPE truenas_system_clock_offset_seconds gauge
 truenas_system_clock_offset_seconds -0.02
 # HELP truenas_system_cpu_cores How many processor cores the NAS has, counting each thread of a core as one.

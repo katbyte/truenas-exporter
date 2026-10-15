@@ -33,10 +33,10 @@ Dependencies are vendored. The dev tools are pinned in `.tools/go.mod` and the m
 It only reads and knows nothing of the NAS beforehand, so any TrueNAS will do. Name the NAS first, logging in as the read-only user the program is meant to run as:
 
 ```bash
-export TRUENAS_METRICS_TEST_SERVER=192.168.1.50
-export TRUENAS_METRICS_TEST_USERNAME=metrics
-export TRUENAS_METRICS_TEST_API_KEY=3-xxxxxxxx
-export TRUENAS_METRICS_TEST_CERTIFICATE_FILE=./nas.pem
+export TRUENAS_EXPORTER_TEST_SERVER=192.168.1.50
+export TRUENAS_EXPORTER_TEST_USERNAME=metrics
+export TRUENAS_EXPORTER_TEST_API_KEY=3-xxxxxxxx
+export TRUENAS_EXPORTER_TEST_CERTIFICATE_FILE=./nas.pem
 make test-live
 ```
 

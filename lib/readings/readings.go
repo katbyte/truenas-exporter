@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/katbyte/truenas-metrics/lib/poll"
+	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -33,7 +33,7 @@ var (
 	pollInterval    = reading("poll_interval_seconds", "How often each part of the NAS is asked about.", "poll")
 	pollDuration    = reading("poll_duration_seconds", "How long the last poll of each part of the NAS took.", "poll")
 	pollLastSuccess = reading("poll_last_success_timestamp_seconds", "When each part of the NAS was last answered in full, in seconds since 1970.", "poll")
-	pollFailures    = reading("poll_failures_total", "How many polls of each part of the NAS have failed since truenas-metrics started.", "poll")
+	pollFailures    = reading("poll_failures_total", "How many polls of each part of the NAS have failed since truenas-exporter started.", "poll")
 
 	systemInfo        = reading("system_info", "Always 1, with the version of TrueNAS and the machine it runs on.", "version", "product", "manufacturer", "cpu")
 	systemState       = reading("system_state", "Whether the NAS is in each state (1) or not (0): BOOTING, READY or SHUTTING_DOWN.", "state")
@@ -44,7 +44,7 @@ var (
 	systemPhysical    = reading("system_cpu_physical_cores", "How many processor cores the NAS has, threads not counted.")
 	systemLoad        = reading("system_load_average", "The load average of the NAS over the window: 1m, 5m or 15m.", "window")
 	systemECC         = reading("system_ecc_memory", "Whether the NAS's memory corrects its own errors (1) or not (0).")
-	systemClockOffset = reading("system_clock_offset_seconds", "The NAS's clock less the clock of the machine running truenas-metrics, when it was last asked.")
+	systemClockOffset = reading("system_clock_offset_seconds", "The NAS's clock less the clock of the machine running truenas-exporter, when it was last asked.")
 
 	updateAvailable   = reading("update_available", "Whether the NAS says a newer version of TrueNAS is available (1) or not (0).")
 	updateCheckFailed = reading("update_check_failed", "Whether the NAS could not find out if there is a newer version (1) or could (0).")
@@ -134,7 +134,7 @@ var (
 	interfaceMTU    = reading("interface_mtu_bytes", "The largest packet each network interface sends.", "interface")
 
 	directoryHealthy = reading("directory_service_healthy", "Whether the directory service the NAS is joined to is healthy (1) or not (0). Only on a NAS joined to one.", "type", "status")
-	keyExpiry        = reading("api_key_expiry_timestamp_seconds", "When the API key truenas-metrics uses stops working, in seconds since 1970. Only for a key that expires.")
+	keyExpiry        = reading("api_key_expiry_timestamp_seconds", "When the API key truenas-exporter uses stops working, in seconds since 1970. Only for a key that expires.")
 )
 
 // Share states, as the page words them.

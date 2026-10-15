@@ -7,8 +7,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/katbyte/truenas-metrics/lib/poll"
-	"github.com/katbyte/truenas-metrics/lib/poll/polltest"
+	"github.com/katbyte/truenas-exporter/lib/poll"
+	"github.com/katbyte/truenas-exporter/lib/poll/polltest"
 )
 
 // every is how often the tests poll: the program's own defaults, every 30 seconds, 5 or 10 minutes, or 4 hours by area.

@@ -9,7 +9,7 @@ TEST_TIMEOUT?=5m
 # dev tool binaries are built into .tools/bin (gitignored) from the versions pinned in
 # .tools/go.mod - the single source of truth for make and CI; dependabot keeps them updated.
 # overridable because binaries cannot execute from a noexec mount (e.g. an smb checkout):
-# make TOOLS_BIN=~/.cache/truenas-metrics/bin lint
+# make TOOLS_BIN=~/.cache/truenas-exporter/bin lint
 TOOLS_BIN?=.tools/bin
 ACTIONLINT=$(TOOLS_BIN)/actionlint
 GOFUMPT=$(TOOLS_BIN)/gofumpt
@@ -92,18 +92,18 @@ help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage: make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-24s\033[0m%s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 
 ##@ Build
-build: ## Compile truenas-metrics with version info from git
+build: ## Compile truenas-exporter with version info from git
 	@echo "==> building..."
 	go build -ldflags "-X github.com/katbyte/go-kt/version.GitCommit=${GIT_COMMIT} -X github.com/katbyte/go-kt/version.Version=${GIT_VERSION}"
 
-install: ## Install truenas-metrics into GOPATH/bin with version info from git
+install: ## Install truenas-exporter into GOPATH/bin with version info from git
 	@echo "==> installing..."
 	go install -ldflags "-X github.com/katbyte/go-kt/version.GitCommit=${GIT_COMMIT} -X github.com/katbyte/go-kt/version.Version=${GIT_VERSION}" .
 
 # the base images come from Google's mirror of Docker Hub, and from Docker Hub itself when the mirror gives nothing, as the build workflow does it
-docker: ## Build the truenas-metrics container image with version info from git
+docker: ## Build the truenas-exporter container image with version info from git
 	@echo "==> building docker image..."
-	docker build --build-arg VERSION=${GIT_VERSION} --build-arg COMMIT=${GIT_COMMIT} -t truenas-metrics . || docker build --build-arg REGISTRY=docker.io/library --build-arg VERSION=${GIT_VERSION} --build-arg COMMIT=${GIT_COMMIT} -t truenas-metrics .
+	docker build --build-arg VERSION=${GIT_VERSION} --build-arg COMMIT=${GIT_COMMIT} -t truenas-exporter . || docker build --build-arg REGISTRY=docker.io/library --build-arg VERSION=${GIT_VERSION} --build-arg COMMIT=${GIT_COMMIT} -t truenas-exporter .
 
 tools: $(ACTIONLINT) $(GOFUMPT) $(GOLANGCI_LINT) $(GOLANGCI_LINT_MODULES) $(MARKDOWNLINT) $(SHELLCHECK) $(TYPOS) $(YAMLLINT) $(ZIZMOR) ## Install all pinned dev tools into .tools/bin
 
@@ -187,9 +187,9 @@ test: build ## Run the tests under the race detector
 # the live suite (acceptance/) runs the program against a real TrueNAS and checks the page against what that NAS says when asked directly. it only
 # reads, so it can be pointed at any NAS: a throwaway one in a virtual machine for choice, where a pool can be broken on purpose. the NAS is named
 # by four variables, kept out of git in a .testenv.sh to source if that is easier: . ./.testenv.sh && make test-live
-test-live: ## Run the live tests against the TrueNAS named by TRUENAS_METRICS_TEST_SERVER, _USERNAME, _API_KEY and _CERTIFICATE_FILE
-	@[ -n "${TRUENAS_METRICS_TEST_SERVER}" ] && [ -n "${TRUENAS_METRICS_TEST_USERNAME}" ] && [ -n "${TRUENAS_METRICS_TEST_API_KEY}" ] || \
-		(echo 'TRUENAS_METRICS_TEST_SERVER, TRUENAS_METRICS_TEST_USERNAME and TRUENAS_METRICS_TEST_API_KEY must be set, and TRUENAS_METRICS_TEST_CERTIFICATE_FILE to the certificate of a NAS the system does not already trust'; exit 1)
+test-live: ## Run the live tests against the TrueNAS named by TRUENAS_EXPORTER_TEST_SERVER, _USERNAME, _API_KEY and _CERTIFICATE_FILE
+	@[ -n "${TRUENAS_EXPORTER_TEST_SERVER}" ] && [ -n "${TRUENAS_EXPORTER_TEST_USERNAME}" ] && [ -n "${TRUENAS_EXPORTER_TEST_API_KEY}" ] || \
+		(echo 'TRUENAS_EXPORTER_TEST_SERVER, TRUENAS_EXPORTER_TEST_USERNAME and TRUENAS_EXPORTER_TEST_API_KEY must be set, and TRUENAS_EXPORTER_TEST_CERTIFICATE_FILE to the certificate of a NAS the system does not already trust'; exit 1)
 	go test -tags acceptance -count=1 ./acceptance/ -timeout ${TEST_TIMEOUT} -v
 
 # the test NAS is truenas-mcp's to make, so its test environment is fetched into .testnas (gitignored) at the version of truenas-mcp this program

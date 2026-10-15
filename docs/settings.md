@@ -48,18 +48,18 @@ The NAS's certificate has to be one the system already trusts.
 
 ## The settings file
 
-The program reads `~/.truenas-metrics` or `./.truenas-metrics`. Keys are the long flag names in capitals, with an underscore between words:
+The program reads `~/.truenas-exporter` or `./.truenas-exporter`. Keys are the long flag names in capitals, with an underscore between words:
 
 ```env
 SERVER=nas.example.net
 USERNAME=metrics
 API_KEY=3-xxxxxxxx
-CERTIFICATE_FILE=/etc/truenas-metrics/nas.pem
+CERTIFICATE_FILE=/etc/truenas-exporter/nas.pem
 ```
 
 A flag or an environment variable wins over the file.
 
-`--config` (or `TRUENAS_METRICS_CONFIG`) names the file to read. It is then the only one read. A named file that is not there stops the program from starting.
+`--config` (or `TRUENAS_EXPORTER_CONFIG`) names the file to read. It is then the only one read. A named file that is not there stops the program from starting.
 
 ## What the NAS is asked about, and how often
 
@@ -99,7 +99,7 @@ A part left out is never asked about and has nothing on the page.
 
 ## Logging
 
-`TRUENAS_METRICS_LOG` sets the log level. `WARN` is the default. `INFO` adds what is being reported on and when the NAS comes back. `DEBUG` adds what the connection is doing.
+`TRUENAS_EXPORTER_LOG` sets the log level. `WARN` is the default. `INFO` adds what is being reported on and when the NAS comes back. `DEBUG` adds what the connection is doing.
 
 ## Docker
 

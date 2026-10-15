@@ -1,12 +1,12 @@
-# truenas-metrics - TrueNAS health as a Prometheus metrics page
+# truenas-exporter - TrueNAS health as a Prometheus metrics page
 
-[![GitHub release](https://img.shields.io/github/v/release/katbyte/truenas-metrics?color=blueviolet)](https://github.com/katbyte/truenas-metrics/releases/latest)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/katbyte/truenas-metrics?color=00ADD8)](https://github.com/katbyte/truenas-metrics/blob/main/go.mod)
-[![License](https://img.shields.io/github/license/katbyte/truenas-metrics?color=blue)](https://github.com/katbyte/truenas-metrics/blob/main/LICENSE)
-![build](https://github.com/katbyte/truenas-metrics/actions/workflows/build.yaml/badge.svg)
-![tests](https://github.com/katbyte/truenas-metrics/actions/workflows/pr-tests.yaml/badge.svg)
-![lint](https://github.com/katbyte/truenas-metrics/actions/workflows/pr-golangci-lint.yaml/badge.svg)
-[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/katbyte/truenas-metrics/badges/coverage.json)](https://github.com/katbyte/truenas-metrics/actions/workflows/coverage.yaml)
+[![GitHub release](https://img.shields.io/github/v/release/katbyte/truenas-exporter?color=blueviolet)](https://github.com/katbyte/truenas-exporter/releases/latest)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/katbyte/truenas-exporter?color=00ADD8)](https://github.com/katbyte/truenas-exporter/blob/main/go.mod)
+[![License](https://img.shields.io/github/license/katbyte/truenas-exporter?color=blue)](https://github.com/katbyte/truenas-exporter/blob/main/LICENSE)
+![build](https://github.com/katbyte/truenas-exporter/actions/workflows/build.yaml/badge.svg)
+![tests](https://github.com/katbyte/truenas-exporter/actions/workflows/pr-tests.yaml/badge.svg)
+![lint](https://github.com/katbyte/truenas-exporter/actions/workflows/pr-golangci-lint.yaml/badge.svg)
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/katbyte/truenas-exporter/badges/coverage.json)](https://github.com/katbyte/truenas-exporter/actions/workflows/coverage.yaml)
 
 Reports how a [TrueNAS](https://www.truenas.com) is doing as a [Prometheus](https://prometheus.io) metrics page.
 
@@ -19,9 +19,9 @@ TrueNAS's own reporting says how busy the machine is. This says whether the stor
 Any one of:
 
 ```bash
-docker pull ghcr.io/katbyte/truenas-metrics:latest
-go install github.com/katbyte/truenas-metrics@latest
-brew install katbyte/tap/truenas-metrics
+docker pull ghcr.io/katbyte/truenas-exporter:latest
+go install github.com/katbyte/truenas-exporter@latest
+brew install katbyte/tap/truenas-exporter
 ```
 
 ## Quick start
@@ -36,13 +36,13 @@ brew install katbyte/tap/truenas-metrics
 3. Check it works, then serve the page:
 
    ```bash
-   export TRUENAS_METRICS_SERVER=nas.example.net
-   export TRUENAS_METRICS_USERNAME=metrics
-   export TRUENAS_METRICS_API_KEY=3-xxxxxxxx
-   export TRUENAS_METRICS_CERTIFICATE_FILE=nas.pem
+   export TRUENAS_EXPORTER_SERVER=nas.example.net
+   export TRUENAS_EXPORTER_USERNAME=metrics
+   export TRUENAS_EXPORTER_API_KEY=3-xxxxxxxx
+   export TRUENAS_EXPORTER_CERTIFICATE_FILE=nas.pem
 
-   truenas-metrics print   # ask once and print the page
-   truenas-metrics serve   # serve it at /metrics, with a health check at /healthz
+   truenas-exporter print   # ask once and print the page
+   truenas-exporter serve   # serve it at /metrics, with a health check at /healthz
    ```
 
 To run it in Docker, see [`docker-compose.yml`](docker-compose.yml): set the NAS's address and user in it and the key in a `.env` ([`.env.example`](.env.example)), and for a NAS that still shows the certificate it came with, put `nas.pem` beside it. [More on Docker](docs/settings.md#docker).
@@ -76,22 +76,22 @@ Each setting is a flag, an environment variable or a line in a settings file. [d
 
 | Variable | Flag | What it is |
 |---|---|---|
-| `TRUENAS_METRICS_SERVER` | `--server` | the NAS's name or address |
-| `TRUENAS_METRICS_USERNAME` | `--username` | the user the key belongs to |
-| `TRUENAS_METRICS_API_KEY` | `--api-key` | the API key |
-| `TRUENAS_METRICS_CERTIFICATE_FILE` | `--certificate-file` | the NAS's own certificate |
-| `TRUENAS_METRICS_CA_FILE` | `--ca-file` | an authority to trust for the NAS's certificate |
-| `TRUENAS_METRICS_SKIP_CERTIFICATE_CHECK` | `--skip-certificate-check` | accept any certificate |
-| `TRUENAS_METRICS_SEND_KEY_UNCHECKED` | `--send-key-unchecked` | send the key without checking the certificate |
-| `TRUENAS_METRICS_LISTEN` | `--listen` | where the page is served, default `:9089` |
-| `TRUENAS_METRICS_LABELS` | `--labels` | labels for every reading, as `name=value,name=value` |
-| `TRUENAS_METRICS_INTERVALS` | `--intervals` | how often to ask about a part, like `snapshots=30m` |
-| `TRUENAS_METRICS_CLOCK_CORRECTION` | `--clock-correction` | added to the NAS's clock, default `500ms` |
-| `TRUENAS_METRICS_DATASET_DEPTH` | `--dataset-depth` | how deep datasets are named, default `1` |
-| `TRUENAS_METRICS_METRICS` | `--metrics` | the parts to ask about, like `pools,disks`; default all |
-| `TRUENAS_METRICS_SKIP` | `--skip` | parts to leave out, like `apps,vms` |
-| `TRUENAS_METRICS_LOG` | | log level: `WARN` (default), `INFO` or `DEBUG` |
-| `TRUENAS_METRICS_CONFIG` | `--config` | the settings file to read |
+| `TRUENAS_EXPORTER_SERVER` | `--server` | the NAS's name or address |
+| `TRUENAS_EXPORTER_USERNAME` | `--username` | the user the key belongs to |
+| `TRUENAS_EXPORTER_API_KEY` | `--api-key` | the API key |
+| `TRUENAS_EXPORTER_CERTIFICATE_FILE` | `--certificate-file` | the NAS's own certificate |
+| `TRUENAS_EXPORTER_CA_FILE` | `--ca-file` | an authority to trust for the NAS's certificate |
+| `TRUENAS_EXPORTER_SKIP_CERTIFICATE_CHECK` | `--skip-certificate-check` | accept any certificate |
+| `TRUENAS_EXPORTER_SEND_KEY_UNCHECKED` | `--send-key-unchecked` | send the key without checking the certificate |
+| `TRUENAS_EXPORTER_LISTEN` | `--listen` | where the page is served, default `:9089` |
+| `TRUENAS_EXPORTER_LABELS` | `--labels` | labels for every reading, as `name=value,name=value` |
+| `TRUENAS_EXPORTER_INTERVALS` | `--intervals` | how often to ask about a part, like `snapshots=30m` |
+| `TRUENAS_EXPORTER_CLOCK_CORRECTION` | `--clock-correction` | added to the NAS's clock, default `500ms` |
+| `TRUENAS_EXPORTER_DATASET_DEPTH` | `--dataset-depth` | how deep datasets are named, default `1` |
+| `TRUENAS_EXPORTER_METRICS` | `--metrics` | the parts to ask about, like `pools,disks`; default all |
+| `TRUENAS_EXPORTER_SKIP` | `--skip` | parts to leave out, like `apps,vms` |
+| `TRUENAS_EXPORTER_LOG` | | log level: `WARN` (default), `INFO` or `DEBUG` |
+| `TRUENAS_EXPORTER_CONFIG` | `--config` | the settings file to read |
 
 ### The certificate
 

@@ -1,4 +1,4 @@
-module github.com/katbyte/truenas-metrics/tools
+module github.com/katbyte/truenas-exporter/tools
 
 go 1.27.2
 

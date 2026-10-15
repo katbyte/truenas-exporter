@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/truenas-metrics/lib/poll"
-	"github.com/katbyte/truenas-metrics/lib/poll/polltest"
+	"github.com/katbyte/truenas-exporter/lib/poll"
+	"github.com/katbyte/truenas-exporter/lib/poll/polltest"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -19,7 +19,7 @@ import (
 
 // viper is global, so none of these can run in parallel and each resets it.
 const (
-	testUse    = "truenas-metrics"
+	testUse    = "truenas-exporter"
 	testServer = "nas.example.net"
 	testUser   = "metrics"
 	testKey    = "3-s3cretk3y"
@@ -106,20 +106,20 @@ func TestDefaults(t *testing.T) {
 func TestEveryFlagHasAnEnvironmentVariable(t *testing.T) {
 	alone(t)
 
-	t.Setenv("TRUENAS_METRICS_SERVER", testServer)
-	t.Setenv("TRUENAS_METRICS_USERNAME", testUser)
-	t.Setenv("TRUENAS_METRICS_API_KEY", testKey)
-	t.Setenv("TRUENAS_METRICS_CERTIFICATE_FILE", "/etc/nas.pem")
-	t.Setenv("TRUENAS_METRICS_CA_FILE", "/etc/authority.pem")
-	t.Setenv("TRUENAS_METRICS_SKIP_CERTIFICATE_CHECK", "true")
-	t.Setenv("TRUENAS_METRICS_SEND_KEY_UNCHECKED", "true")
-	t.Setenv("TRUENAS_METRICS_LISTEN", "127.0.0.1:9000")
-	t.Setenv("TRUENAS_METRICS_LABELS", "hostname=nas")
-	t.Setenv("TRUENAS_METRICS_DATASET_DEPTH", "3")
-	t.Setenv("TRUENAS_METRICS_METRICS", "pools,disks")
-	t.Setenv("TRUENAS_METRICS_SKIP", "disks")
-	t.Setenv("TRUENAS_METRICS_INTERVALS", "snapshots=30m")
-	t.Setenv("TRUENAS_METRICS_CLOCK_CORRECTION", "250ms")
+	t.Setenv("TRUENAS_EXPORTER_SERVER", testServer)
+	t.Setenv("TRUENAS_EXPORTER_USERNAME", testUser)
+	t.Setenv("TRUENAS_EXPORTER_API_KEY", testKey)
+	t.Setenv("TRUENAS_EXPORTER_CERTIFICATE_FILE", "/etc/nas.pem")
+	t.Setenv("TRUENAS_EXPORTER_CA_FILE", "/etc/authority.pem")
+	t.Setenv("TRUENAS_EXPORTER_SKIP_CERTIFICATE_CHECK", "true")
+	t.Setenv("TRUENAS_EXPORTER_SEND_KEY_UNCHECKED", "true")
+	t.Setenv("TRUENAS_EXPORTER_LISTEN", "127.0.0.1:9000")
+	t.Setenv("TRUENAS_EXPORTER_LABELS", "hostname=nas")
+	t.Setenv("TRUENAS_EXPORTER_DATASET_DEPTH", "3")
+	t.Setenv("TRUENAS_EXPORTER_METRICS", "pools,disks")
+	t.Setenv("TRUENAS_EXPORTER_SKIP", "disks")
+	t.Setenv("TRUENAS_EXPORTER_INTERVALS", "snapshots=30m")
+	t.Setenv("TRUENAS_EXPORTER_CLOCK_CORRECTION", "250ms")
 
 	want := FlagData{
 		Server: testServer, Username: testUser, APIKey: testKey, CertificateFile: "/etc/nas.pem", CAFile: "/etc/authority.pem", SkipCertificateCheck: true, SendKeyUnchecked: true,
@@ -143,7 +143,7 @@ func TestEveryFlagHasAnEnvironmentVariable(t *testing.T) {
 // A flag beats the environment, which beats a settings file: a container overrides what an image holds, and a command line overrides both.
 func TestFlagThenEnvironmentThenFile(t *testing.T) {
 	home, _ := alone(t)
-	write(t, home, ".truenas-metrics", "SERVER=from-file\nAPI_KEY=from-file\nINTERVALS=snapshots=30m\nSKIP_CERTIFICATE_CHECK=true\nDATASET_DEPTH=2\nLISTEN=:9000\n")
+	write(t, home, ".truenas-exporter", "SERVER=from-file\nAPI_KEY=from-file\nINTERVALS=snapshots=30m\nSKIP_CERTIFICATE_CHECK=true\nDATASET_DEPTH=2\nLISTEN=:9000\n")
 
 	f := must(t)
 	if f.Server != "from-file" || f.APIKey != "from-file" || f.Intervals != "snapshots=30m" || !f.SkipCertificateCheck || f.DatasetDepth != 2 || f.Listen != ":9000" {
@@ -151,8 +151,8 @@ func TestFlagThenEnvironmentThenFile(t *testing.T) {
 	}
 
 	viper.Reset()
-	t.Setenv("TRUENAS_METRICS_SERVER", "from-env")
-	t.Setenv("TRUENAS_METRICS_INTERVALS", "apps=1m")
+	t.Setenv("TRUENAS_EXPORTER_SERVER", "from-env")
+	t.Setenv("TRUENAS_EXPORTER_INTERVALS", "apps=1m")
 	f = must(t)
 	if f.Server != "from-env" || f.Intervals != "apps=1m" || f.APIKey != "from-file" {
 		t.Errorf("with the environment = %+v, want it over the file, and the file for the rest", f)
@@ -165,7 +165,7 @@ func TestFlagThenEnvironmentThenFile(t *testing.T) {
 	}
 }
 
-// A .truenas-metrics in the working directory is found before the one in $HOME, and neither being there is not an error.
+// A .truenas-exporter in the working directory is found before the one in $HOME, and neither being there is not an error.
 //
 //nolint:paralleltest // viper is global state; these mutate it
 func TestSettingsFilePrecedence(t *testing.T) {
@@ -176,13 +176,13 @@ func TestSettingsFilePrecedence(t *testing.T) {
 	}
 
 	viper.Reset()
-	write(t, home, ".truenas-metrics", "SERVER=from-home\n")
+	write(t, home, ".truenas-exporter", "SERVER=from-home\n")
 	if f := must(t); f.Server != "from-home" {
 		t.Errorf("server = %q, want the one in $HOME", f.Server)
 	}
 
 	viper.Reset()
-	write(t, wd, ".truenas-metrics", "SERVER=from-here\n")
+	write(t, wd, ".truenas-exporter", "SERVER=from-here\n")
 	if f := must(t); f.Server != "from-here" {
 		t.Errorf("server = %q, want the working directory's over $HOME's", f.Server)
 	}
@@ -192,7 +192,7 @@ func TestSettingsFilePrecedence(t *testing.T) {
 // up with someone else's, or with none.
 func TestANamedSettingsFile(t *testing.T) {
 	home, _ := alone(t)
-	write(t, home, ".truenas-metrics", "SERVER=from-home\n")
+	write(t, home, ".truenas-exporter", "SERVER=from-home\n")
 	named := write(t, home, "other.env", "USERNAME=from-named\n")
 
 	f := must(t, "--config", named)
@@ -240,13 +240,13 @@ func TestConnection(t *testing.T) {
 		change func(*FlagData)
 		names  string
 	}{
-		"no NAS":                            {func(f *FlagData) { f.Server = "" }, "TRUENAS_METRICS_SERVER"},
-		"no user":                           {func(f *FlagData) { f.Username = "" }, "TRUENAS_METRICS_USERNAME"},
-		"no key":                            {func(f *FlagData) { f.APIKey = "" }, "TRUENAS_METRICS_API_KEY"},
-		"a depth below nothing":             {func(f *FlagData) { f.DatasetDepth = -1 }, "TRUENAS_METRICS_DATASET_DEPTH"},
-		"a certificate and an authority":    {func(f *FlagData) { f.CAFile = "/etc/authority.pem" }, "TRUENAS_METRICS_CA_FILE"},
-		"a certificate and no check at all": {func(f *FlagData) { f.SkipCertificateCheck = true }, "TRUENAS_METRICS_CERTIFICATE_FILE"},
-		"the key sent unchecked, checked":   {func(f *FlagData) { f.SendKeyUnchecked = true }, "TRUENAS_METRICS_SKIP_CERTIFICATE_CHECK"},
+		"no NAS":                            {func(f *FlagData) { f.Server = "" }, "TRUENAS_EXPORTER_SERVER"},
+		"no user":                           {func(f *FlagData) { f.Username = "" }, "TRUENAS_EXPORTER_USERNAME"},
+		"no key":                            {func(f *FlagData) { f.APIKey = "" }, "TRUENAS_EXPORTER_API_KEY"},
+		"a depth below nothing":             {func(f *FlagData) { f.DatasetDepth = -1 }, "TRUENAS_EXPORTER_DATASET_DEPTH"},
+		"a certificate and an authority":    {func(f *FlagData) { f.CAFile = "/etc/authority.pem" }, "TRUENAS_EXPORTER_CA_FILE"},
+		"a certificate and no check at all": {func(f *FlagData) { f.SkipCertificateCheck = true }, "TRUENAS_EXPORTER_CERTIFICATE_FILE"},
+		"the key sent unchecked, checked":   {func(f *FlagData) { f.SendKeyUnchecked = true }, "TRUENAS_EXPORTER_SKIP_CERTIFICATE_CHECK"},
 	} {
 		f := whole
 		c.change(&f)
@@ -295,9 +295,9 @@ func TestSkippedRefusesAWordThatNamesNoPart(t *testing.T) {
 	t.Parallel()
 
 	for _, c := range []struct{ metrics, skip, names, word string }{
-		{"", "apps,smart", "TRUENAS_METRICS_SKIP", `"smart"`},
-		{"system", "", "TRUENAS_METRICS_METRICS", `"system"`},
-		{"app,disks", "", "TRUENAS_METRICS_METRICS", `"app"`},
+		{"", "apps,smart", "TRUENAS_EXPORTER_SKIP", `"smart"`},
+		{"system", "", "TRUENAS_EXPORTER_METRICS", `"system"`},
+		{"app,disks", "", "TRUENAS_EXPORTER_METRICS", `"app"`},
 	} {
 		f := FlagData{Metrics: c.metrics, Skip: c.skip}
 
@@ -328,7 +328,7 @@ func TestIntervals(t *testing.T) {
 	for _, bad := range []string{"smart=1m", "snapshots", "snapshots=soon", "snapshots=0s", "snapshots=-1m", "=1m"} {
 		f := FlagData{Intervals: bad}
 
-		if _, err := f.intervals(); err == nil || !strings.Contains(err.Error(), "TRUENAS_METRICS_INTERVALS") {
+		if _, err := f.intervals(); err == nil || !strings.Contains(err.Error(), "TRUENAS_EXPORTER_INTERVALS") {
 			t.Errorf("--intervals %q = %v, want an error naming the setting", bad, err)
 		}
 	}
@@ -366,7 +366,7 @@ func TestPoller(t *testing.T) {
 	}
 
 	f.Intervals = "system=0s"
-	if _, _, err := f.poller(connect); err == nil || !strings.Contains(err.Error(), "TRUENAS_METRICS_INTERVALS") || len(made) != 1 {
+	if _, _, err := f.poller(connect); err == nil || !strings.Contains(err.Error(), "TRUENAS_EXPORTER_INTERVALS") || len(made) != 1 {
 		t.Errorf("an interval of nothing = %v after %d connections; want it refused naming the setting, before connecting", err, len(made))
 	}
 }

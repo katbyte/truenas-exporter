@@ -1,19 +1,19 @@
 # Default always-on deployment: runs the released image from ghcr.io and serves the metrics page
 # for a Grafana Alloy, or a Prometheus, on the same host to scrape.
-# To run a local build instead: make docker, then set image: truenas-metrics (or add build: .).
+# To run a local build instead: make docker, then set image: truenas-exporter (or add build: .).
 # The API key comes from a gitignored .env next to this file, see .env.example.
 # The image's own healthcheck asks /healthz on the default port; add a healthcheck here if
-# TRUENAS_METRICS_LISTEN names another.
+# TRUENAS_EXPORTER_LISTEN names another.
 
 networks:
   net:
     name: net
 
 services:
-  truenas-metrics:
-    image: ghcr.io/katbyte/truenas-metrics:latest
-    container_name: truenas-metrics
-    hostname: truenas-metrics
+  truenas-exporter:
+    image: ghcr.io/katbyte/truenas-exporter:latest
+    container_name: truenas-exporter
+    hostname: truenas-exporter
     restart: always
     networks:
       net:
@@ -22,25 +22,25 @@ services:
     ports:
       - "127.0.0.1:9089:9089"
     # a NAS that still shows the certificate it came with is trusted by that certificate alone: fetch it to nas.pem as the
-    # README says, then uncomment this and TRUENAS_METRICS_CERTIFICATE_FILE below. A NAS reached by a name whose
+    # README says, then uncomment this and TRUENAS_EXPORTER_CERTIFICATE_FILE below. A NAS reached by a name whose
     # certificate is already trusted, through a proxy say, needs neither
     # volumes:
-    #   - "./nas.pem:/etc/truenas-metrics/nas.pem:ro"
+    #   - "./nas.pem:/etc/truenas-exporter/nas.pem:ro"
     env_file:
       - .env
     environment:
       - "TZ=America/Vancouver"
-      - "TRUENAS_METRICS_SERVER=nas.example.net"
-      - "TRUENAS_METRICS_USERNAME=metrics"
-      - "TRUENAS_METRICS_LISTEN=:9089"
-      - "TRUENAS_METRICS_LOG=INFO"
-      # - "TRUENAS_METRICS_CERTIFICATE_FILE=/etc/truenas-metrics/nas.pem"  # with the volume above, for a NAS that still shows the certificate it came with
-      # - "TRUENAS_METRICS_CA_FILE=/etc/truenas-metrics/ca.pem"  # in place of the certificate, for a NAS given one with its own name on it
-      # - "TRUENAS_METRICS_LABELS=hostname=nas"                  # labels for every reading, when whatever scrapes the page adds none of its own
-      # - "TRUENAS_METRICS_DATASET_DEPTH=1"                      # how far below its pool a dataset may be and still be named
-      # - "TRUENAS_METRICS_METRICS=pools,disks"                  # the parts of the NAS to ask about, all of them unless set; docs/settings.md lists them
-      # - "TRUENAS_METRICS_SKIP=apps,vms"                        # parts of the NAS to leave out of those
-      # - "TRUENAS_METRICS_INTERVALS=snapshots=30m"              # how often to ask about a part, where its default will not do
+      - "TRUENAS_EXPORTER_SERVER=nas.example.net"
+      - "TRUENAS_EXPORTER_USERNAME=metrics"
+      - "TRUENAS_EXPORTER_LISTEN=:9089"
+      - "TRUENAS_EXPORTER_LOG=INFO"
+      # - "TRUENAS_EXPORTER_CERTIFICATE_FILE=/etc/truenas-exporter/nas.pem"  # with the volume above, for a NAS that still shows the certificate it came with
+      # - "TRUENAS_EXPORTER_CA_FILE=/etc/truenas-exporter/ca.pem"  # in place of the certificate, for a NAS given one with its own name on it
+      # - "TRUENAS_EXPORTER_LABELS=hostname=nas"                  # labels for every reading, when whatever scrapes the page adds none of its own
+      # - "TRUENAS_EXPORTER_DATASET_DEPTH=1"                      # how far below its pool a dataset may be and still be named
+      # - "TRUENAS_EXPORTER_METRICS=pools,disks"                  # the parts of the NAS to ask about, all of them unless set; docs/settings.md lists them
+      # - "TRUENAS_EXPORTER_SKIP=apps,vms"                        # parts of the NAS to leave out of those
+      # - "TRUENAS_EXPORTER_INTERVALS=snapshots=30m"              # how often to ask about a part, where its default will not do
     logging:
       options:
         max-size: 100m

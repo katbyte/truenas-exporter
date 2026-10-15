@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/katbyte/go-kt/clog"
+	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-mcp/sdk/truenas/client"
-	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
 // Caller makes one call of the TrueNAS API over a connection that is already logged in, and decodes the answer into into.

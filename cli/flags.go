@@ -11,15 +11,15 @@ import (
 
 	"github.com/katbyte/go-kt/clog"
 	"github.com/katbyte/go-kt/pmetrics"
-	"github.com/katbyte/truenas-metrics/lib/poll"
-	"github.com/katbyte/truenas-metrics/lib/readings"
+	"github.com/katbyte/truenas-exporter/lib/poll"
+	"github.com/katbyte/truenas-exporter/lib/readings"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 // toolName is what the program is called, on the page's front and in its help.
-const toolName = "truenas-metrics"
+const toolName = "truenas-exporter"
 
 // The defaults: where the page is served, and what is added to the NAS's clock, which it gives to the whole second, to put the reading of it in
 // the middle of where the time could be.
@@ -47,20 +47,20 @@ type FlagData struct {
 
 // envNames binds each flag to its environment variable.
 var envNames = map[string]string{
-	"server":                 "TRUENAS_METRICS_SERVER",
-	"username":               "TRUENAS_METRICS_USERNAME",
-	"api-key":                "TRUENAS_METRICS_API_KEY",
-	"certificate-file":       "TRUENAS_METRICS_CERTIFICATE_FILE",
-	"ca-file":                "TRUENAS_METRICS_CA_FILE",
-	"skip-certificate-check": "TRUENAS_METRICS_SKIP_CERTIFICATE_CHECK",
-	"send-key-unchecked":     "TRUENAS_METRICS_SEND_KEY_UNCHECKED",
-	"listen":                 "TRUENAS_METRICS_LISTEN",
-	"labels":                 "TRUENAS_METRICS_LABELS",
-	"dataset-depth":          "TRUENAS_METRICS_DATASET_DEPTH",
-	"metrics":                "TRUENAS_METRICS_METRICS",
-	"skip":                   "TRUENAS_METRICS_SKIP",
-	"intervals":              "TRUENAS_METRICS_INTERVALS",
-	"clock-correction":       "TRUENAS_METRICS_CLOCK_CORRECTION",
+	"server":                 "TRUENAS_EXPORTER_SERVER",
+	"username":               "TRUENAS_EXPORTER_USERNAME",
+	"api-key":                "TRUENAS_EXPORTER_API_KEY",
+	"certificate-file":       "TRUENAS_EXPORTER_CERTIFICATE_FILE",
+	"ca-file":                "TRUENAS_EXPORTER_CA_FILE",
+	"skip-certificate-check": "TRUENAS_EXPORTER_SKIP_CERTIFICATE_CHECK",
+	"send-key-unchecked":     "TRUENAS_EXPORTER_SEND_KEY_UNCHECKED",
+	"listen":                 "TRUENAS_EXPORTER_LISTEN",
+	"labels":                 "TRUENAS_EXPORTER_LABELS",
+	"dataset-depth":          "TRUENAS_EXPORTER_DATASET_DEPTH",
+	"metrics":                "TRUENAS_EXPORTER_METRICS",
+	"skip":                   "TRUENAS_EXPORTER_SKIP",
+	"intervals":              "TRUENAS_EXPORTER_INTERVALS",
+	"clock-correction":       "TRUENAS_EXPORTER_CLOCK_CORRECTION",
 }
 
 // persistent is the flag set configureFlags bound, for the one setting that has to be read before viper is: where the settings file is.
@@ -71,7 +71,7 @@ func configureFlags(root *cobra.Command) error {
 
 	pflags.String("server", "", "the TrueNAS's name or address, e.g. nas.example.net or https://192.168.1.5; it is only ever reached over TLS")
 	pflags.String("username", "", "the user the API key was made for")
-	pflags.String("api-key", "", "the API key (consider exporting to TRUENAS_METRICS_API_KEY instead)")
+	pflags.String("api-key", "", "the API key (consider exporting to TRUENAS_EXPORTER_API_KEY instead)")
 	pflags.String("certificate-file", "", "the NAS's own certificate as a PEM file: only a NAS that holds its key is spoken to, whatever name is on it, which is what fits the certificate a TrueNAS comes with")
 	pflags.String("ca-file", "", "trust the certificates in this PEM file as well as the system's, for a NAS given a certificate with its own name on it")
 	pflags.Bool("skip-certificate-check", false, "take whatever certificate the NAS shows: nothing then says it is the NAS that answers, and a TrueNAS before version 26 is not sent the key unless --send-key-unchecked is given too")
@@ -83,7 +83,7 @@ func configureFlags(root *cobra.Command) error {
 	pflags.String("skip", "", "leave these parts of the NAS out of those --metrics names, named as for it: apps,vms say; nothing of them is on the page")
 	pflags.String("intervals", "", "how often to ask about some parts of the NAS, as part=duration with commas between them: snapshots=30m,apps=1m say; unset, "+defaultsSaid())
 	pflags.Duration("clock-correction", defaultClockCorrection, "added to the time the NAS gives before it is held to this machine's clock: a TrueNAS gives it to the whole second, so half a second centres the reading; 0 for a NAS that gives it finer")
-	pflags.String("config", "", "read settings from this file and no other, in place of ./.truenas-metrics or ~/.truenas-metrics (or export TRUENAS_METRICS_CONFIG)")
+	pflags.String("config", "", "read settings from this file and no other, in place of ./.truenas-exporter or ~/.truenas-exporter (or export TRUENAS_EXPORTER_CONFIG)")
 
 	persistent = pflags
 
@@ -101,7 +101,7 @@ func configureFlags(root *cobra.Command) error {
 }
 
 // configEnv names the settings file from the environment, as --config does on the command line.
-const configEnv = "TRUENAS_METRICS_CONFIG"
+const configEnv = "TRUENAS_EXPORTER_CONFIG"
 
 // configPath is the settings file a run was told to read, "" for none: the flag's, then the environment's. A leading ~/ is the home directory, for
 // whatever starts the program without a shell to expand it.
@@ -122,8 +122,8 @@ func configPath() string {
 	return path
 }
 
-// loadConfig reads the settings file, once the flags are parsed: the one --config or TRUENAS_METRICS_CONFIG names and no other, or else the first
-// .truenas-metrics found in the working directory and then in $HOME. A file that was named and cannot be read is an error; one merely absent from
+// loadConfig reads the settings file, once the flags are parsed: the one --config or TRUENAS_EXPORTER_CONFIG names and no other, or else the first
+// .truenas-exporter found in the working directory and then in $HOME. A file that was named and cannot be read is an error; one merely absent from
 // the usual places is not.
 func loadConfig() error {
 	viper.SetConfigType("env")

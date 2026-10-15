@@ -3,8 +3,8 @@ package nas
 import (
 	"context"
 
+	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-mcp/sdk/truenas"
-	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
 // jobTask is a task of a kind the NAS runs as a job, cloud sync, cloud backup or rsync, said by how its last job went. A job that was stopped by hand

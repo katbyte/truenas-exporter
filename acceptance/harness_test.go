@@ -19,16 +19,16 @@ import (
 	"time"
 
 	"github.com/katbyte/go-kt/pmetrics"
+	"github.com/katbyte/truenas-exporter/cli"
 	"github.com/katbyte/truenas-mcp/sdk/truenasrpc"
-	"github.com/katbyte/truenas-metrics/cli"
 )
 
 // The NAS under test and how to log in to it, from the environment. They are variables so that a test of the suite itself can stand a NAS in.
 var (
-	address  = os.Getenv("TRUENAS_METRICS_TEST_SERVER")
-	username = os.Getenv("TRUENAS_METRICS_TEST_USERNAME")
-	key      = os.Getenv("TRUENAS_METRICS_TEST_API_KEY")
-	certFile = os.Getenv("TRUENAS_METRICS_TEST_CERTIFICATE_FILE")
+	address  = os.Getenv("TRUENAS_EXPORTER_TEST_SERVER")
+	username = os.Getenv("TRUENAS_EXPORTER_TEST_USERNAME")
+	key      = os.Getenv("TRUENAS_EXPORTER_TEST_API_KEY")
+	certFile = os.Getenv("TRUENAS_EXPORTER_TEST_CERTIFICATE_FILE")
 )
 
 // furnished is whether the NAS under test is truenas-mcp's throwaway one with one of each thing a NAS is watched for on it, under the names its
@@ -43,7 +43,7 @@ func live(t *testing.T) {
 	t.Helper()
 
 	if address == "" || username == "" || key == "" {
-		t.Skip("no TrueNAS to test against: set TRUENAS_METRICS_TEST_SERVER, TRUENAS_METRICS_TEST_USERNAME and TRUENAS_METRICS_TEST_API_KEY")
+		t.Skip("no TrueNAS to test against: set TRUENAS_EXPORTER_TEST_SERVER, TRUENAS_EXPORTER_TEST_USERNAME and TRUENAS_EXPORTER_TEST_API_KEY")
 	}
 }
 
@@ -54,16 +54,16 @@ func deployed(t *testing.T) {
 
 	t.Setenv("HOME", t.TempDir())
 	t.Chdir(t.TempDir())
-	t.Setenv("TRUENAS_METRICS_CONFIG", "")
+	t.Setenv("TRUENAS_EXPORTER_CONFIG", "")
 	for _, unset := range []string{"CA_FILE", "SKIP_CERTIFICATE_CHECK", "SEND_KEY_UNCHECKED", "LISTEN", "LABELS", "FAST_INTERVAL", "SLOW_INTERVAL"} {
-		t.Setenv("TRUENAS_METRICS_"+unset, "")
+		t.Setenv("TRUENAS_EXPORTER_"+unset, "")
 	}
 
-	t.Setenv("TRUENAS_METRICS_SERVER", address)
-	t.Setenv("TRUENAS_METRICS_USERNAME", username)
-	t.Setenv("TRUENAS_METRICS_API_KEY", key)
-	t.Setenv("TRUENAS_METRICS_CERTIFICATE_FILE", certFile)
-	t.Setenv("TRUENAS_METRICS_DATASET_DEPTH", "64")
+	t.Setenv("TRUENAS_EXPORTER_SERVER", address)
+	t.Setenv("TRUENAS_EXPORTER_USERNAME", username)
+	t.Setenv("TRUENAS_EXPORTER_API_KEY", key)
+	t.Setenv("TRUENAS_EXPORTER_CERTIFICATE_FILE", certFile)
+	t.Setenv("TRUENAS_EXPORTER_DATASET_DEPTH", "64")
 }
 
 // printed runs the program's print as it is shipped against the NAS under test, and gives back the page and how it ended.

@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/katbyte/go-kt/pmetrics"
+	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-mcp/acceptance/layout"
 	"github.com/katbyte/truenas-mcp/sdk/truenasrpc"
-	"github.com/katbyte/truenas-metrics/lib/poll"
 	"github.com/prometheus/client_golang/prometheus/testutil/promlint"
 )
 
