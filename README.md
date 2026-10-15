@@ -45,7 +45,7 @@ brew install katbyte/tap/truenas-metrics
    truenas-metrics serve   # serve it at /metrics, with a health check at /healthz
    ```
 
-To run it in Docker, see [`docker-compose.yml`](docker-compose.yml): set the NAS's address and user in it, put `nas.pem` beside it and the key in a `.env` ([`.env.example`](.env.example)). [More on Docker](docs/settings.md#docker).
+To run it in Docker, see [`docker-compose.yml`](docker-compose.yml): set the NAS's address and user in it and the key in a `.env` ([`.env.example`](.env.example)), and for a NAS that still shows the certificate it came with, put `nas.pem` beside it. [More on Docker](docs/settings.md#docker).
 
 ## What it reports
 

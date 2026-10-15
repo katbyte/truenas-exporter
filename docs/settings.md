@@ -107,10 +107,11 @@ A part left out is never asked about and has nothing on the page.
 
 ```bash
 cp .env.example .env   # put the key in it
-openssl s_client -connect nas.example.net:443 </dev/null 2>/dev/null | openssl x509 > nas.pem
 docker compose up -d
 curl -s http://127.0.0.1:9089/metrics
 ```
+
+A NAS that still shows the certificate it came with needs it beside the file as `nas.pem`, fetched as [above](#--certificate-file), and the two lines for it uncommented. One reached by a name whose certificate is already trusted, through a proxy say, needs neither.
 
 The page has no password, so the example serves it on `127.0.0.1` only. Whatever scrapes it usually runs on the same host.
 
