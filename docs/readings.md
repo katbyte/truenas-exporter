@@ -100,7 +100,7 @@ truenas_disk_temperature_celsius * on (serial) group_left (model, pool) truenas_
 | `truenas_dataset_compression_ratio` | `dataset`, `pool` | how many times compression shrinks it |
 | `truenas_dataset_snapshots` | `dataset`, `pool` | snapshots of this dataset itself |
 
-Datasets are named one level below the pool, since deeper names are often people's. `TRUENAS_METRICS_DATASET_DEPTH` changes that; `0` names only the pool's own. The two counts always include every dataset.
+Datasets are named one level below the pool, since deeper names are often people's. `TRUENAS_EXPORTER_DATASET_DEPTH` changes that; `0` names only the pool's own. The two counts always include every dataset.
 
 Snapshot counts are asked for apart from the rest, every 10 minutes unless `--intervals` says otherwise: counting them has the NAS go through every snapshot.
 
@@ -177,10 +177,10 @@ A state a newer TrueNAS adds is written under its own name. The page has no Go r
 
 ## Labels of your own
 
-`TRUENAS_METRICS_LABELS` adds labels to every reading:
+`TRUENAS_EXPORTER_LABELS` adds labels to every reading:
 
 ```env
-TRUENAS_METRICS_LABELS=hostname=nas,site=home
+TRUENAS_EXPORTER_LABELS=hostname=nas,site=home
 ```
 
 ```text

@@ -3,9 +3,9 @@ package cli
 import (
 	"github.com/katbyte/go-kt/clog"
 	"github.com/katbyte/go-kt/version"
+	"github.com/katbyte/truenas-exporter/lib/nas"
+	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-mcp/sdk/truenasrpc"
-	"github.com/katbyte/truenas-metrics/lib/nas"
-	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
 // connect makes the connection the NAS is asked over: truenas-mcp's, which dials on the first question, logs in with the key, and dials again

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (2026-10-15)
+
+Renamed to truenas-exporter, as nearly every Prometheus exporter is named.
+
+- **The program, its Docker image and its Homebrew formula are now `truenas-exporter`**: `ghcr.io/katbyte/truenas-exporter` and `brew install katbyte/tap/truenas-exporter`.
+- **Every setting is renamed, and the old names no longer work**: `TRUENAS_METRICS_*` is now `TRUENAS_EXPORTER_*`, and the settings file is `.truenas-exporter` in place of `.truenas-metrics`.
+- **The readings keep their names.** That includes `truenas_metrics_build_info` for now.
+
 ## 0.1.1 (2026-10-14)
 
 - **The NAS's clock reading is centred.** TrueNAS gives its time to the whole second, so `truenas_system_clock_offset_seconds` read 0 to 1 second low. Half a second is now added, which `--clock-correction` changes.

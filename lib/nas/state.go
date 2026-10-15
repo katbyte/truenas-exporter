@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/katbyte/go-kt/pointer"
+	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-mcp/sdk/truenas"
-	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
 // Alerts asks the NAS for the alerts it is showing. What each says is not kept, only how serious it is and of what kind.

@@ -16,9 +16,9 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/katbyte/truenas-exporter/lib/nas"
+	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-mcp/sdk/truenas"
-	"github.com/katbyte/truenas-metrics/lib/nas"
-	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
 // canned is a NAS that answers each method with the file of its name in testdata, or with what a test says in its place, and remembers what it was

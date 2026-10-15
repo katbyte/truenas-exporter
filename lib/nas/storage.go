@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/katbyte/go-kt/pointer"
+	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-mcp/sdk/truenas"
-	"github.com/katbyte/truenas-metrics/lib/poll"
 )
 
 // diskFields is what is read of a disk.

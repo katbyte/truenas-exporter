@@ -7,7 +7,7 @@
 .coverage
 .capture
 dist
-truenas-metrics
+truenas-exporter
 *.md
 docker-compose.yml
 .env*

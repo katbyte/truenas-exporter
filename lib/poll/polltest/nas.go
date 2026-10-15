@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/katbyte/truenas-metrics/lib/poll"
+	"github.com/katbyte/truenas-exporter/lib/poll"
 )
 
 // The questions a NAS is asked, as Fail and Asked name them.
