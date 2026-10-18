@@ -39,8 +39,9 @@ services:
       # - "TRUENAS_EXPORTER_LABELS=hostname=nas"                  # labels for every reading, when whatever scrapes the page adds none of its own
       # - "TRUENAS_EXPORTER_DATASET_DEPTH=1"                      # how far below its pool a dataset may be and still be named
       # - "TRUENAS_EXPORTER_METRICS=pools,disks"                  # the parts of the NAS to ask about, all of them unless set; docs/settings.md lists them
-      # - "TRUENAS_EXPORTER_SKIP=apps,vms"                        # parts of the NAS to leave out of those
+      # - "TRUENAS_EXPORTER_SKIP=apps,vms"                        # parts of the NAS to leave out of those; poll leaves out the truenas_poll_* readings
       # - "TRUENAS_EXPORTER_INTERVALS=snapshots=30m"              # how often to ask about a part, where its default will not do
+      # - "TRUENAS_EXPORTER_CLOCK_CORRECTION=500ms"               # added to the NAS's clock, which it gives to the whole second; 0 for one that gives it finer
     logging:
       options:
         max-size: 100m
