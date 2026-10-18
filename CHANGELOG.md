@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 (2026-10-18)
 
 - **The readings of how the asking goes can be left off**: `--skip poll` drops the four `truenas_poll_*` readings, and `--metrics` keeps them only when it names `poll`. `truenas_up` stays either way.
 
