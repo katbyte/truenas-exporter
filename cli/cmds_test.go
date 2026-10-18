@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/katbyte/go-kt/clog"
-	"github.com/katbyte/go-kt/pmetrics"
+	"github.com/katbyte/go-kt/prometheus/metrics"
 	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-exporter/lib/poll/polltest"
 	"github.com/katbyte/truenas-mcp/sdk/truenastest"
@@ -233,7 +233,7 @@ func TestLabelsGoOnEveryReading(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`truenas_up{hostname="nas",site="home"} 1`, `truenas_pool_healthy{hostname="nas",pool="tank",site="home"} 1`, `truenas_metrics_build_info{commit="",goversion="`, `hostname="nas",site="home",version="`} {
+	for _, want := range []string{`truenas_up{hostname="nas",site="home"} 1`, `truenas_pool_healthy{hostname="nas",pool="tank",site="home"} 1`, `truenas_exporter_build_info{commit="",goversion="`, `hostname="nas",site="home",version="`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the page lacks %s:\n%s", want, out)
 		}
@@ -282,8 +282,8 @@ func TestPrintFailsWhenTheNASDoesNotAnswer(t *testing.T) {
 	nas.Fail("", errors.New("connection refused"))
 
 	out, err := run(t, stood(nas, nil), to("print")...)
-	if err == nil || !strings.Contains(err.Error(), "did not answer") {
-		t.Errorf("print with the NAS down = %v, want an error saying it did not answer", err)
+	if err == nil || !strings.Contains(err.Error(), "the NAS: the system, ") {
+		t.Errorf("print with the NAS down = %v, want an error saying the NAS's own state was not answered", err)
 	}
 	if !strings.Contains(out, "truenas_up 0") || strings.Contains(out, "truenas_pool_") {
 		t.Errorf("the page should show the NAS down and nothing of its pools:\n%s", out)
@@ -295,8 +295,8 @@ func TestPrintFailsWhenTheNASDoesNotAnswer(t *testing.T) {
 	nas.Fail(polltest.Tasks, errors.New("not authorized"))
 
 	out, err = run(t, stood(nas, nil), to("print")...)
-	if err == nil {
-		t.Error("print with one question refused succeeded, want it to fail")
+	if err == nil || !strings.Contains(err.Error(), "the tasks round failed") {
+		t.Errorf("print with one question refused = %v, want it to fail naming the tasks", err)
 	}
 	if !strings.Contains(out, "truenas_up 1") || !strings.Contains(out, `truenas_pool_healthy{pool="tank"} 1`) || !strings.Contains(out, `truenas_poll_failures_total{poll="tasks"} 1`) {
 		t.Errorf("the page should show the NAS up, its pool, and the poll of tasks failed:\n%s", out)
@@ -382,7 +382,7 @@ func served(t *testing.T, addr string, want ...string) string {
 
 	var body string
 	for range 50 {
-		body = fetch(t, addr, pmetrics.Path)
+		body = fetch(t, addr, metrics.Path)
 
 		missing := false
 		for _, w := range want {
@@ -417,8 +417,8 @@ func TestServe(t *testing.T) {
 
 	stop, stopped := serving(t, stood(nas, &closed), to("serve", "--listen", addr)...)
 
-	if got := strings.TrimSpace(fetch(t, addr, pmetrics.HealthPath)); got != "ok" {
-		t.Errorf("%s = %q, want ok", pmetrics.HealthPath, got)
+	if got := strings.TrimSpace(fetch(t, addr, metrics.HealthPath)); got != "ok" {
+		t.Errorf("%s = %q, want ok", metrics.HealthPath, got)
 	}
 
 	// every part is asked about as the program starts, so they are on the page within moments: one question refused costs its own readings only

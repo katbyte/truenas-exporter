@@ -1,19 +1,16 @@
 package readings_test
 
 import (
-	"flag"
-	"os"
-	"runtime"
 	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
 
-	"github.com/katbyte/go-kt/pmetrics"
-	"github.com/katbyte/go-kt/pointer"
+	"github.com/katbyte/go-kt/prometheus/metrics"
+	"github.com/katbyte/go-kt/prometheus/metricstest"
+	"github.com/katbyte/go-kt/prometheus/poller"
 	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-exporter/lib/readings"
-	"github.com/prometheus/client_golang/prometheus/testutil/promlint"
 )
 
 // saved is where the page is kept as it was last agreed.
@@ -24,18 +21,14 @@ const (
 	tib = 1 << 40
 )
 
-// update rewrites the saved page from what the code writes now: go test ./lib/readings -update. Read the difference before keeping it, since a
-// reading that is renamed is one somebody's dashboard no longer finds.
-var update = flag.Bool("update", false, "rewrite testdata/page.txt from the page as it is written now")
-
 // fixed is a NAS whose state is whatever the test says.
 type fixed poll.State
 
 func (f *fixed) State() poll.State { return poll.State(*f) }
 
 // answered is an answer given now.
-func answered[T any](value T) poll.Answer[T] {
-	return poll.Answer[T]{Value: value, At: time.Now()}
+func answered[T any](value T) poller.Answer[T] {
+	return poller.Answer[T]{Value: value, At: time.Now()}
 }
 
 // online is a disk in a pool with nothing wrong with it.
@@ -122,32 +115,20 @@ func tank() *fixed {
 		Directory:    answered(poll.Directory{Type: "ACTIVEDIRECTORY", Status: "HEALTHY"}),
 		Key:          answered(poll.Key{Expires: now.Add(30 * 24 * time.Hour)}),
 
-		Rounds: rounds(now),
+		Rounds: map[poll.Area]poller.Round{poll.AreaSystem: {Ran: true, OK: true, Took: 250 * time.Millisecond, LastSuccess: now}},
 	}
-}
-
-// rounds is every area asked about as often as it is by default and answered just now, but for the tasks: answered a minute ago, after two polls
-// that failed.
-func rounds(now time.Time) map[poll.Area]poll.RoundState {
-	out := map[poll.Area]poll.RoundState{}
-	for area, every := range poll.DefaultIntervals() {
-		out[area] = poll.RoundState{Interval: every, Ran: true, OK: true, Took: 250 * time.Millisecond, LastSuccess: now}
-	}
-	out[poll.AreaTasks] = poll.RoundState{Interval: 5 * time.Minute, Ran: true, OK: true, Took: 3 * time.Second, LastSuccess: now.Add(-time.Minute), Failures: 2}
-
-	return out
 }
 
 // down is a NAS that has been asked once about its own state and did not answer.
 func down() *fixed {
-	return &fixed{Rounds: map[poll.Area]poll.RoundState{poll.AreaSystem: {Interval: 30 * time.Second, Ran: true, Took: 30 * time.Second, Failures: 1}}}
+	return &fixed{Rounds: map[poll.Area]poller.Round{poll.AreaSystem: {Ran: true, Took: 30 * time.Second, Failures: 1}}}
 }
 
 // page is the page of this NAS's readings, with the datasets named to the depth given and the labels on every one.
 func page(t *testing.T, source readings.Source, depth int, labels map[string]string) string {
 	t.Helper()
 
-	p, err := pmetrics.New(pmetrics.Options{Name: "truenas-exporter", Namespace: readings.Namespace, Labels: labels}, readings.New(source, readings.Options{DatasetDepth: depth}))
+	p, err := metrics.New(metrics.Options{Name: "truenas-exporter", Labels: labels}, readings.New(source, readings.Options{DatasetDepth: depth}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +152,7 @@ func write(t *testing.T, source readings.Source) string {
 func lines(text string) []string {
 	var out []string
 	for line := range strings.Lines(text) {
-		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "truenas_metrics_build_info") {
+		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "truenas_exporter_build_info") {
 			out = append(out, line)
 		}
 	}
@@ -222,22 +203,7 @@ func TestThePageIsWhatWasSaved(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
-		got := write(t, tank())
-		got = strings.Replace(got, runtime.Version(), "go", 1)
-
-		if pointer.From(update) {
-			if err := os.WriteFile(saved, []byte(got), 0o600); err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		want, err := os.ReadFile(saved)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got != string(want) {
-			t.Errorf("the page is not the one saved in %s; if the change is meant, run go test ./lib/readings -update and read the difference\n%s", saved, got)
-		}
+		metricstest.Saved(t, write(t, tank()), saved)
 	})
 }
 
@@ -245,13 +211,7 @@ func TestThePageIsWhatWasSaved(t *testing.T) {
 func TestThePageFollowsTheNamingConventions(t *testing.T) {
 	t.Parallel()
 
-	problems, err := promlint.New(strings.NewReader(write(t, tank()))).Lint()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range problems {
-		t.Errorf("%s: %s", p.Metric, p.Text)
-	}
+	metricstest.Lint(t, write(t, tank()))
 }
 
 // No label whoever runs the program is likely to want is one a reading already has, so the page can still be made with them on it.
@@ -267,7 +227,7 @@ func TestTheLabelsAnyoneWouldSetCanBeSet(t *testing.T) {
 	}
 }
 
-// A NAS that has never been asked has no readings at all, and one that was asked and did not answer has only how the asking went: a pool reported
+// A NAS that has never been asked has no readings at all, and one that was asked and did not answer has only that it is down: a pool reported
 // healthy, or with no alerts, would say something nobody knows.
 func TestANASThatNeverAnsweredHasNoReadingsOfItsState(t *testing.T) {
 	t.Parallel()
@@ -277,12 +237,7 @@ func TestANASThatNeverAnsweredHasNoReadingsOfItsState(t *testing.T) {
 	}
 
 	got := write(t, down())
-	want := []string{
-		`truenas_poll_duration_seconds{poll="system"} 30`,
-		`truenas_poll_failures_total{poll="system"} 1`,
-		`truenas_poll_interval_seconds{poll="system"} 30`,
-		`truenas_up 0`,
-	}
+	want := []string{`truenas_up 0`}
 	if strings.Join(lines(got), "\n") != strings.Join(want, "\n") {
 		t.Errorf("a NAS that did not answer reads\n%s\nwant\n%s", strings.Join(lines(got), "\n"), strings.Join(want, "\n"))
 	}
@@ -422,7 +377,7 @@ func TestADiskIsJoinedToItsSerialAndItsPool(t *testing.T) {
 
 	// until the disks have been asked for, the pool's readings are there without a serial rather than not there
 	early := tank()
-	early.Disks = poll.Answer[[]poll.Disk]{}
+	early.Disks = poller.Answer[[]poll.Disk]{}
 	wants(t, write(t, early), `truenas_pool_device_read_errors{class="data",disk="sdd",pool="tank",serial="",vdev="raidz2-0"} 3`)
 	absent(t, write(t, early), "truenas_disk_")
 }
@@ -567,7 +522,7 @@ func TestTheRest(t *testing.T) {
 			`truenas_system_uptime_seconds 864000`, `truenas_system_boot_timestamp_seconds 9.458208e+08`, `truenas_system_memory_bytes 6.8719476736e+10`,
 			`truenas_system_cpu_cores 8`, `truenas_system_cpu_physical_cores 4`, `truenas_system_ecc_memory 1`, `truenas_system_clock_offset_seconds -0.02`,
 			`truenas_system_load_average{window="1m"} 0.5`, `truenas_system_load_average{window="5m"} 0.75`, `truenas_system_load_average{window="15m"} 1.25`,
-			`truenas_up 1`, `truenas_poll_duration_seconds{poll="tasks"} 3`, `truenas_poll_failures_total{poll="tasks"} 2`, `truenas_poll_last_success_timestamp_seconds{poll="system"} 9.466848e+08`, `truenas_poll_interval_seconds{poll="snapshots"} 600`,
+			`truenas_up 1`,
 		)
 
 		// a NAS joined to no directory has no directory to be healthy, a key that never expires has no end, and a faulted directory is not healthy

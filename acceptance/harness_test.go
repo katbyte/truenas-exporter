@@ -10,15 +10,10 @@ import (
 	"errors"
 	"io"
 	"net"
-	"net/http"
 	"os"
-	"regexp"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/katbyte/go-kt/pmetrics"
 	"github.com/katbyte/truenas-exporter/cli"
 	"github.com/katbyte/truenas-mcp/sdk/truenasrpc"
 )
@@ -128,49 +123,6 @@ func serving(t *testing.T, intervals string) string {
 	return "http://" + at
 }
 
-// get reads one path from a program that is serving. One still starting is tried for a few seconds.
-func get(t *testing.T, at string) string {
-	t.Helper()
-
-	for range 100 {
-		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, at, http.NoBody)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			time.Sleep(50 * time.Millisecond)
-			continue
-		}
-
-		body, err := io.ReadAll(res.Body)
-		_ = res.Body.Close()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		return string(body)
-	}
-	t.Fatalf("nothing answered at %s", at)
-
-	return ""
-}
-
-// until reads the page until it satisfies ok, for as long as patience allows, and gives back the page as it last was.
-func until(t *testing.T, at string, ok func(page string) bool) string {
-	t.Helper()
-
-	var page string
-	for deadline := time.Now().Add(patience); time.Now().Before(deadline); time.Sleep(250 * time.Millisecond) {
-		if page = get(t, at+pmetrics.Path); ok(page) {
-			return page
-		}
-	}
-
-	return page
-}
-
 // asking is a connection of the suite's own to the NAS under test, for asking it directly what the page should say. The program never uses it: it
 // makes its own.
 func asking(t *testing.T) *truenasrpc.Conn {
@@ -222,69 +174,4 @@ func asked[T any](t *testing.T, conn *truenasrpc.Conn, method string, params ...
 	}
 
 	return answer
-}
-
-// readings is every reading on a page of this name, as its labels and its value.
-func readings(page, name string) []reading {
-	var out []reading
-	for line := range strings.Lines(page) {
-		line = strings.TrimSpace(line)
-
-		rest, ok := strings.CutPrefix(line, name)
-		if !ok || rest == "" || (rest[0] != '{' && rest[0] != ' ') {
-			continue
-		}
-
-		r := reading{labels: map[string]string{}}
-		if rest[0] == '{' {
-			end := strings.LastIndex(rest, "}")
-			for _, pair := range label.FindAllStringSubmatch(rest[:end], -1) {
-				// a label's value is written as Go writes a string, near enough
-				value, err := strconv.Unquote(`"` + pair[2] + `"`)
-				if err != nil {
-					value = pair[2]
-				}
-				r.labels[pair[1]] = value
-			}
-			rest = rest[end+1:]
-		}
-
-		value, err := strconv.ParseFloat(strings.TrimSpace(rest), 64)
-		if err != nil {
-			continue
-		}
-		r.value = value
-		out = append(out, r)
-	}
-
-	return out
-}
-
-// label finds one name="value" among a reading's labels.
-var label = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_]*)="((?:[^"\\]|\\.)*)"`)
-
-// reading is one line of the page.
-type reading struct {
-	labels map[string]string
-	value  float64
-}
-
-// one is the value of the one reading of this name whose labels include these, and whether there was exactly one.
-func one(page, name string, with map[string]string) (float64, bool) {
-	var found []float64
-	for _, r := range readings(page, name) {
-		matches := true
-		for k, v := range with {
-			matches = matches && r.labels[k] == v
-		}
-		if matches {
-			found = append(found, r.value)
-		}
-	}
-
-	if len(found) != 1 {
-		return 0, false
-	}
-
-	return found[0], true
 }

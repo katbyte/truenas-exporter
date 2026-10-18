@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/go-kt/pmetrics"
+	"github.com/katbyte/go-kt/prometheus/metrics"
+	"github.com/katbyte/go-kt/prometheus/metricstest"
 	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-mcp/acceptance/layout"
 	"github.com/katbyte/truenas-mcp/sdk/truenasrpc"
@@ -40,31 +41,31 @@ func printAnswersEveryQuestion(t *testing.T) {
 	}
 
 	for _, r := range []named{{"truenas_up", nil}, {"truenas_system_state", map[string]string{"state": "READY"}}} {
-		if got, ok := one(page, r.name, r.with); !ok || got != 1 {
+		if got, ok := metricstest.One(t, page, r.name, r.with); !ok || got != 1 {
 			t.Errorf("%s%v = %v (one reading: %t), want 1", r.name, r.with, got, ok)
 		}
 	}
 
 	// whether a scrub of the boot pool is running, or the update check failed, is the NAS's business: only that the reading is there
 	for _, r := range []named{{"truenas_pool_scan_running", map[string]string{"pool": "boot-pool", "function": "SCRUB"}}, {"truenas_update_check_failed", nil}} {
-		if _, ok := one(page, r.name, r.with); !ok {
+		if _, ok := metricstest.One(t, page, r.name, r.with); !ok {
 			t.Errorf("the page has no one reading of %s%v", r.name, r.with)
 		}
 	}
 
 	for _, area := range poll.Every {
-		if got, ok := one(page, "truenas_poll_failures_total", map[string]string{"poll": string(area)}); !ok || got != 0 {
+		if got, ok := metricstest.One(t, page, "truenas_poll_failures_total", map[string]string{"poll": string(area)}); !ok || got != 0 {
 			t.Errorf("asking about %s failed %v times (one reading: %t), want it answered in full the first time", area, got, ok)
 		}
 	}
 
-	if info := readings(page, "truenas_system_info"); len(info) != 1 || info[0].labels["version"] == "" {
+	if info := metricstest.Readings(t, page, "truenas_system_info"); len(info) != 1 || info[0].Labels["version"] == "" {
 		t.Errorf("truenas_system_info = %+v, want the one reading with the NAS's version", info)
 	}
 
 	// what is written whether or not there is anything to count
 	for name, want := range map[string]int{"truenas_alerts": 7, "truenas_jobs": 2, "truenas_shares": 9, "truenas_tasks": 6, "truenas_system_state": 3} {
-		if got := len(readings(page, name)); got < want {
+		if got := len(metricstest.Readings(t, page, name)); got < want {
 			t.Errorf("%d readings of %s, want the %d that are always written", got, name, want)
 		}
 	}
@@ -218,11 +219,11 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 		}
 	}
 
-	if got, want := len(readings(page, "truenas_pool_healthy")), len(nas.Pools)+1; got != want {
+	if got, want := len(metricstest.Readings(t, page, "truenas_pool_healthy")), len(nas.Pools)+1; got != want {
 		t.Errorf("%d pools on the page, want the NAS's %d and its boot pool", got, len(nas.Pools))
 	}
 	for _, pool := range nas.Pools {
-		if got, ok := one(page, "truenas_pool_status", map[string]string{"pool": pool.Name, "status": pool.Status}); !ok || got != 1 {
+		if got, ok := metricstest.One(t, page, "truenas_pool_status", map[string]string{"pool": pool.Name, "status": pool.Status}); !ok || got != 1 {
 			t.Errorf("pool %s is not on the page as %s", pool.Name, pool.Status)
 		}
 
@@ -230,30 +231,30 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 		if pool.Healthy {
 			healthy = 1
 		}
-		if got, ok := one(page, "truenas_pool_healthy", map[string]string{"pool": pool.Name}); !ok || got != healthy {
+		if got, ok := metricstest.One(t, page, "truenas_pool_healthy", map[string]string{"pool": pool.Name}); !ok || got != healthy {
 			t.Errorf("truenas_pool_healthy of %s = %v, want %v", pool.Name, got, healthy)
 		}
 
 		if pool.Size != nil {
-			if got, ok := one(page, "truenas_pool_size_bytes", map[string]string{"pool": pool.Name}); !ok || got != float64(*pool.Size) {
+			if got, ok := metricstest.One(t, page, "truenas_pool_size_bytes", map[string]string{"pool": pool.Name}); !ok || got != float64(*pool.Size) {
 				t.Errorf("truenas_pool_size_bytes of %s = %v, want %d", pool.Name, got, *pool.Size)
 			}
 		}
 	}
-	if got, ok := one(page, "truenas_pool_status", map[string]string{"pool": nas.Boot.Name, "status": nas.Boot.Status}); !ok || got != 1 {
+	if got, ok := metricstest.One(t, page, "truenas_pool_status", map[string]string{"pool": nas.Boot.Name, "status": nas.Boot.Status}); !ok || got != 1 {
 		t.Errorf("the boot pool %s is not on the page as %s", nas.Boot.Name, nas.Boot.Status)
 	}
 
-	if got := len(readings(page, "truenas_disk_info")); got != len(nas.Disks) {
+	if got := len(metricstest.Readings(t, page, "truenas_disk_info")); got != len(nas.Disks) {
 		t.Errorf("%d disks on the page, want the NAS's %d", got, len(nas.Disks))
 	}
 	for _, disk := range nas.Disks {
-		if _, ok := one(page, "truenas_disk_info", map[string]string{"disk": disk.Name, "serial": disk.Serial}); !ok {
+		if _, ok := metricstest.One(t, page, "truenas_disk_info", map[string]string{"disk": disk.Name, "serial": disk.Serial}); !ok {
 			t.Errorf("disk %s is not on the page with its serial number", disk.Name)
 		}
 
 		if disk.Size != nil {
-			if got, ok := one(page, "truenas_disk_size_bytes", map[string]string{"disk": disk.Name, "serial": disk.Serial}); !ok || got != float64(*disk.Size) {
+			if got, ok := metricstest.One(t, page, "truenas_disk_size_bytes", map[string]string{"disk": disk.Name, "serial": disk.Serial}); !ok || got != float64(*disk.Size) {
 				t.Errorf("truenas_disk_size_bytes of %s = %v, want %d", disk.Name, got, *disk.Size)
 			}
 		}
@@ -261,33 +262,33 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 		// a disk that says how hot it is has that on the page, give or take what it warmed or cooled since it was asked, and one that says
 		// nothing has no temperature there
 		want, says := nas.Temperatures[disk.Name]
-		if got, ok := one(page, "truenas_disk_temperature_celsius", map[string]string{"disk": disk.Name, "serial": disk.Serial}); ok != says || math.Abs(got-want) > 5 {
+		if got, ok := metricstest.One(t, page, "truenas_disk_temperature_celsius", map[string]string{"disk": disk.Name, "serial": disk.Serial}); ok != says || math.Abs(got-want) > 5 {
 			t.Errorf("truenas_disk_temperature_celsius of %s = %v (on the page: %t), want about %v (the NAS gives one: %t)", disk.Name, got, ok, want, says)
 		}
 	}
 
 	// every disk a pool has is one the NAS lists, so each has a serial number to be joined on. A disk the pool has lost is not listed any more,
 	// and has none
-	for _, device := range readings(page, "truenas_pool_device_status") {
-		if device.labels["status"] == "ONLINE" && device.labels["serial"] == "" {
-			t.Errorf("the disk %s of pool %s has no serial number on the page", device.labels["disk"], device.labels["pool"])
+	for _, device := range metricstest.Readings(t, page, "truenas_pool_device_status") {
+		if device.Labels["status"] == "ONLINE" && device.Labels["serial"] == "" {
+			t.Errorf("the disk %s of pool %s has no serial number on the page", device.Labels["disk"], device.Labels["pool"])
 		}
 	}
 
 	perPool := map[string]int{}
 	for _, dataset := range nas.Datasets {
 		perPool[dataset.Pool]++
-		if _, ok := one(page, "truenas_dataset_used_bytes", map[string]string{"dataset": dataset.Name}); !ok {
+		if _, ok := metricstest.One(t, page, "truenas_dataset_used_bytes", map[string]string{"dataset": dataset.Name}); !ok {
 			t.Errorf("dataset %s is not on the page", dataset.Name)
 		}
 	}
 	for pool, want := range perPool {
-		if got, ok := one(page, "truenas_datasets", map[string]string{"pool": pool}); !ok || int(got) != want {
+		if got, ok := metricstest.One(t, page, "truenas_datasets", map[string]string{"pool": pool}); !ok || int(got) != want {
 			t.Errorf("truenas_datasets of %s = %v, want %d", pool, got, want)
 		}
 
 		// snapshot counts are asked for apart from the datasets, and every pool with a dataset has a count of its snapshots, if only of none
-		if _, ok := one(page, "truenas_snapshots", map[string]string{"pool": pool}); !ok {
+		if _, ok := metricstest.One(t, page, "truenas_snapshots", map[string]string{"pool": pool}); !ok {
 			t.Errorf("pool %s has no count of its snapshots on the page", pool)
 		}
 	}
@@ -301,10 +302,10 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 			enabled = 1
 		}
 
-		if got, ok := one(page, "truenas_service_running", map[string]string{"service": service.Name}); !ok || got != running {
+		if got, ok := metricstest.One(t, page, "truenas_service_running", map[string]string{"service": service.Name}); !ok || got != running {
 			t.Errorf("truenas_service_running of %s = %v, want %v", service.Name, got, running)
 		}
-		if got, ok := one(page, "truenas_service_enabled", map[string]string{"service": service.Name}); !ok || got != enabled {
+		if got, ok := metricstest.One(t, page, "truenas_service_enabled", map[string]string{"service": service.Name}); !ok || got != enabled {
 			t.Errorf("truenas_service_enabled of %s = %v, want %v", service.Name, got, enabled)
 		}
 	}
@@ -313,19 +314,19 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 	// own zone without naming it, so a page that took it for UTC is hours out
 	if certFile != "" {
 		cert, found := shown(t), false
-		for _, r := range readings(page, "truenas_certificate_expiry_timestamp_seconds") {
-			found = found || r.value == float64(cert.NotAfter.Unix())
+		for _, r := range metricstest.Readings(t, page, "truenas_certificate_expiry_timestamp_seconds") {
+			found = found || r.Value == float64(cert.NotAfter.Unix())
 		}
 		if !found {
 			t.Errorf("no certificate on the page runs out when the one the NAS shows does, %s", cert.NotAfter.UTC())
 		}
 	}
 
-	if got := len(readings(page, "truenas_vm_state")); got != len(nas.VMs) {
+	if got := len(metricstest.Readings(t, page, "truenas_vm_state")); got != len(nas.VMs) {
 		t.Errorf("%d virtual machines on the page, want the NAS's %d", got, len(nas.VMs))
 	}
 	for _, vm := range nas.VMs {
-		if got, ok := one(page, "truenas_vm_state", map[string]string{"vm": vm.Name, "state": vm.Status.State}); !ok || got != 1 {
+		if got, ok := metricstest.One(t, page, "truenas_vm_state", map[string]string{"vm": vm.Name, "state": vm.Status.State}); !ok || got != 1 {
 			t.Errorf("the virtual machine %s is not on the page as %s", vm.Name, vm.Status.State)
 		}
 	}
@@ -339,23 +340,23 @@ func pageSaysWhatTheNASSays(t *testing.T) {
 		}
 	}
 	var onPage float64
-	for _, r := range readings(page, "truenas_alerts") {
-		onPage += r.value
+	for _, r := range metricstest.Readings(t, page, "truenas_alerts") {
+		onPage += r.Value
 	}
-	if got, _ := one(page, "truenas_alerts_dismissed", nil); onPage != showing || got != dismissed {
+	if got, _ := metricstest.One(t, page, "truenas_alerts_dismissed", nil); onPage != showing || got != dismissed {
 		t.Errorf("%v alerts showing and %v dismissed on the page, want the NAS's %v and %v", onPage, got, showing, dismissed)
 	}
 
 	for kind, want := range nas.Tasks {
-		if got, ok := one(page, "truenas_tasks", map[string]string{"kind": kind}); !ok || int(got) != want {
+		if got, ok := metricstest.One(t, page, "truenas_tasks", map[string]string{"kind": kind}); !ok || int(got) != want {
 			t.Errorf("truenas_tasks of kind %s = %v, want %d", kind, got, want)
 		}
 	}
 	for protocol, want := range nas.Shares {
 		var got float64
-		for _, r := range readings(page, "truenas_shares") {
-			if r.labels["protocol"] == protocol {
-				got += r.value
+		for _, r := range metricstest.Readings(t, page, "truenas_shares") {
+			if r.Labels["protocol"] == protocol {
+				got += r.Value
 			}
 		}
 		if int(got) != want {
@@ -413,38 +414,38 @@ func TestTheFurnishedNASIsOnThePage(t *testing.T) {
 		{"truenas_task_last_run_failed", copying, 1},
 		{"truenas_tasks_failed", map[string]string{"kind": "rsync"}, 1},
 	} {
-		if got, ok := one(page, r.name, r.with); !ok || got != r.want {
+		if got, ok := metricstest.One(t, page, r.name, r.with); !ok || got != r.want {
 			t.Errorf("%s%v = %v (one reading: %t), want %v", r.name, r.with, got, ok, r.want)
 		}
 	}
 
 	// a task that ran says when, and one that never has says nothing of a last run: it has neither failed nor not
 	for _, ran := range []map[string]string{snapshots, copying} {
-		if got, ok := one(page, "truenas_task_last_run_timestamp_seconds", ran); !ok || got <= 0 {
+		if got, ok := metricstest.One(t, page, "truenas_task_last_run_timestamp_seconds", ran); !ok || got <= 0 {
 			t.Errorf("truenas_task_last_run_timestamp_seconds%v = %v (one reading: %t), want when it last ran", ran, got, ok)
 		}
 	}
 	for _, name := range []string{"truenas_task_last_run_failed", "truenas_task_last_run_timestamp_seconds"} {
-		if got, ok := one(page, name, replication); ok {
+		if got, ok := metricstest.One(t, page, name, replication); ok {
 			t.Errorf("%s%v = %v, want no such reading of a replication that has never run", name, replication, got)
 		}
 	}
 
 	// the snapshot task that ran left a snapshot of its dataset behind it, counted apart from the dataset itself
-	if got, ok := one(page, "truenas_dataset_snapshots", map[string]string{"dataset": layout.TaskDataset}); !ok || got < 1 {
+	if got, ok := metricstest.One(t, page, "truenas_dataset_snapshots", map[string]string{"dataset": layout.TaskDataset}); !ok || got < 1 {
 		t.Errorf("truenas_dataset_snapshots of %s = %v (one reading: %t), want the snapshot its task took", layout.TaskDataset, got, ok)
 	}
 
 	// the copy that failed left an alert behind it, which is the one alert there is a kind to name for
-	if got, ok := one(page, "truenas_alerts_by_class", map[string]string{"class": "RsyncFailed"}); !ok || got < 1 {
+	if got, ok := metricstest.One(t, page, "truenas_alerts_by_class", map[string]string{"class": "RsyncFailed"}); !ok || got < 1 {
 		t.Errorf("truenas_alerts_by_class of RsyncFailed = %v (one reading: %t), want the alert the failed copy raised", got, ok)
 	}
 
 	// the one disk that says how hot it is, and a temperature a disk could be at: not an empty answer read as 0, nor one in another unit
-	if got, ok := one(page, "truenas_disk_temperature_celsius", map[string]string{"serial": layout.HotDiskSerial}); !ok || got < 1 || got > 100 {
+	if got, ok := metricstest.One(t, page, "truenas_disk_temperature_celsius", map[string]string{"serial": layout.HotDiskSerial}); !ok || got < 1 || got > 100 {
 		t.Errorf("truenas_disk_temperature_celsius of the disk %s = %v (one reading: %t), want a temperature in degrees Celsius", layout.HotDiskSerial, got, ok)
 	}
-	if got := len(readings(page, "truenas_disk_temperature_celsius")); got != 1 {
+	if got := len(metricstest.Readings(t, page, "truenas_disk_temperature_celsius")); got != 1 {
 		t.Errorf("%d disks with a temperature on the page, want only the one that gives one", got)
 	}
 
@@ -464,16 +465,16 @@ func serveKeepsThePageFresh(t *testing.T) {
 
 	at := serving(t, "system=2s")
 
-	if got := strings.TrimSpace(get(t, at+pmetrics.HealthPath)); got != "ok" {
-		t.Errorf("%s = %q, want ok", pmetrics.HealthPath, got)
+	if got := strings.TrimSpace(metricstest.Get(t, at+metrics.HealthPath)); got != "ok" {
+		t.Errorf("%s = %q, want ok", metrics.HealthPath, got)
 	}
 
 	answered := func(page, area string) (float64, bool) {
-		return one(page, "truenas_poll_last_success_timestamp_seconds", map[string]string{"poll": area})
+		return metricstest.One(t, page, "truenas_poll_last_success_timestamp_seconds", map[string]string{"poll": area})
 	}
 
-	page := until(t, at, func(page string) bool {
-		up, _ := one(page, "truenas_up", nil)
+	page, _ := metricstest.Until(t, at+metrics.Path, patience, func(page string) bool {
+		up, _ := metricstest.One(t, page, "truenas_up", nil)
 		_, system := answered(page, "system")
 		_, snapshots := answered(page, "snapshots")
 
@@ -484,18 +485,18 @@ func serveKeepsThePageFresh(t *testing.T) {
 	}
 
 	first, ok := answered(page, "system")
-	if up, _ := one(page, "truenas_up", nil); up != 1 || !ok {
+	if up, _ := metricstest.One(t, page, "truenas_up", nil); up != 1 || !ok {
 		t.Fatalf("the page never said the NAS was up with its own state and its snapshots answered:\n%s", page)
 	}
 
-	page = until(t, at, func(page string) bool {
+	page, _ = metricstest.Until(t, at+metrics.Path, patience, func(page string) bool {
 		again, _ := answered(page, "system")
 		return again > first
 	})
 	if again, _ := answered(page, "system"); again <= first {
 		t.Errorf("the NAS was not asked about its own state again within %s of being answered", patience)
 	}
-	if failures, _ := one(page, "truenas_poll_failures_total", map[string]string{"poll": "system"}); failures != 0 {
+	if failures, _ := metricstest.One(t, page, "truenas_poll_failures_total", map[string]string{"poll": "system"}); failures != 0 {
 		t.Errorf("asking about the NAS's own state failed %v times while serving", failures)
 	}
 }

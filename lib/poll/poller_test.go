@@ -41,13 +41,14 @@ func TestAPollKeepsItsAnswers(t *testing.T) {
 		p := newPoller(t, nas)
 
 		start := time.Now()
-		p.Poll(t.Context(), poll.AreaSystem)
-		p.Poll(t.Context(), poll.AreaPools)
+		if err := errors.Join(p.Poll(t.Context(), poll.AreaSystem), p.Poll(t.Context(), poll.AreaPools)); err != nil {
+			t.Fatal(err)
+		}
 		s := p.State()
 
 		// every question about an area is put at once, so the poll takes as long as one of them
-		if r := s.Rounds[poll.AreaPools]; !r.Ran || !r.OK || r.Took != 2*time.Second || !r.LastSuccess.Equal(start.Add(4*time.Second)) || r.Failures != 0 || r.Interval != 30*time.Second {
-			t.Errorf("pools = %+v, want a poll every 30s that ran, answered and took 2s", r)
+		if r := s.Rounds[poll.AreaPools]; !r.Ran || !r.OK || r.Took != 2*time.Second || !r.LastSuccess.Equal(start.Add(4*time.Second)) || r.Failures != 0 {
+			t.Errorf("pools = %+v, want a poll that ran, answered and took 2s", r)
 		}
 		if !s.System.Known() || s.System.Value.Version != "25.10.7" || !s.Up() {
 			t.Errorf("system = %+v, up %t; want the NAS's own state, and the NAS up", s.System, s.Up())
@@ -64,7 +65,9 @@ func TestAPollAsksAboutItsOwnArea(t *testing.T) {
 
 	for area, asked := range polltest.Questions {
 		nas := &polltest.NAS{}
-		newPoller(t, nas).Poll(t.Context(), area)
+		if err := newPoller(t, nas).Poll(t.Context(), area); err != nil {
+			t.Errorf("polling %s: %v", area, err)
+		}
 
 		for other, questions := range polltest.Questions {
 			for _, question := range questions {
@@ -85,13 +88,15 @@ func TestAFailedQuestionKeepsTheLastGoodAnswer(t *testing.T) {
 		nas := &polltest.NAS{PoolsAnswer: make([]poll.Pool, 2), BootPoolAnswer: poll.Pool{Name: "boot-pool"}}
 		p := newPoller(t, nas)
 
-		p.Poll(t.Context(), poll.AreaPools)
+		if err := p.Poll(t.Context(), poll.AreaPools); err != nil {
+			t.Fatal(err)
+		}
 		first := time.Now()
 
 		time.Sleep(time.Minute)
 		nas.Fail(polltest.BootPool, errDown)
 		nas.PoolsAnswer = make([]poll.Pool, 3)
-		p.Poll(t.Context(), poll.AreaPools)
+		_ = p.Poll(t.Context(), poll.AreaPools)
 		s := p.State()
 
 		if r := s.Rounds[poll.AreaPools]; r.OK || r.Failures != 1 || !r.LastSuccess.Equal(first) {
@@ -105,7 +110,7 @@ func TestAFailedQuestionKeepsTheLastGoodAnswer(t *testing.T) {
 		}
 
 		nas.Fail(polltest.BootPool, nil)
-		p.Poll(t.Context(), poll.AreaPools)
+		_ = p.Poll(t.Context(), poll.AreaPools)
 		if r := p.State().Rounds[poll.AreaPools]; !r.OK || r.Failures != 1 {
 			t.Errorf("pools = %+v, want it answering again with the one failure still counted", r)
 		}
@@ -125,13 +130,13 @@ func TestUpFollowsTheNASsOwnState(t *testing.T) {
 		}
 
 		nas.Fail(polltest.Datasets, errDown)
-		p.PollAll(t.Context())
-		if s := p.State(); !s.Up() || s.Rounds[poll.AreaDatasets].OK || s.Answered() {
+		err := p.PollAll(t.Context())
+		if s := p.State(); !s.Up() || s.Rounds[poll.AreaDatasets].OK || err == nil {
 			t.Error("a failed poll of datasets took the NAS down, or did not fail")
 		}
 
 		nas.Fail("", errDown)
-		p.Poll(t.Context(), poll.AreaSystem)
+		_ = p.Poll(t.Context(), poll.AreaSystem)
 		if s := p.State(); s.Up() || s.Rounds[poll.AreaSystem].Failures != 1 {
 			t.Errorf("system = %+v, want the NAS down after one failure", s.Rounds[poll.AreaSystem])
 		}
@@ -148,8 +153,10 @@ func TestAnAreaLeftOutIsNeverAsked(t *testing.T) {
 		nas := &polltest.NAS{}
 		p := newPoller(t, nas, left...)
 
-		p.PollAll(t.Context())
-		p.Poll(t.Context(), poll.AreaApps)
+		err := p.PollAll(t.Context())
+		if p.Poll(t.Context(), poll.AreaApps) == nil {
+			t.Error("polling apps, left out, did not say there is no such thing to ask")
+		}
 		s := p.State()
 
 		for area, questions := range polltest.Questions {
@@ -170,14 +177,16 @@ func TestAnAreaLeftOutIsNeverAsked(t *testing.T) {
 		if s.Pools.Known() || s.BootPool.Known() || s.Shares.Known() || s.Apps.Known() || s.Disks.Known() {
 			t.Error("an area left out has an answer")
 		}
-		if !s.Answered() || !s.Up() || !s.Alerts.Known() || !s.Clients.Known() {
-			t.Errorf("polls %+v; want every one answered, and the areas asked about known", s.Rounds)
+		if err != nil || !s.Up() || !s.Alerts.Known() || !s.Clients.Known() {
+			t.Errorf("polls %+v (%v); want every one answered, and the areas asked about known", s.Rounds, err)
 		}
 
 		nas = &polltest.NAS{}
 		p = newPoller(t, nas, poll.Areas...)
 
-		p.PollAll(t.Context())
+		if err := p.PollAll(t.Context()); err != nil {
+			t.Fatal(err)
+		}
 		if s := p.State(); nas.Asked(polltest.System) != 1 || !s.System.Known() || !s.Up() || len(s.Rounds) != 1 {
 			t.Errorf("with every area left out the NAS's own state was asked %d times, up is %t and %d areas were polled; want it asked once, up, and alone", nas.Asked(polltest.System), s.Up(), len(s.Rounds))
 		}
@@ -192,11 +201,13 @@ func TestAnAnswerIsDroppedOnceStale(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		nas := &polltest.NAS{PoolsAnswer: []poll.Pool{{Name: "tank", Healthy: true}}, DisksAnswer: make([]poll.Disk, 3)}
 		p := newPoller(t, nas)
-		p.PollAll(t.Context())
+		if err := p.PollAll(t.Context()); err != nil {
+			t.Fatal(err)
+		}
 		nas.Fail("", errDown)
 
 		time.Sleep(3 * 30 * time.Second)
-		p.Poll(t.Context(), poll.AreaSystem)
+		_ = p.Poll(t.Context(), poll.AreaSystem)
 		if s := p.State(); !s.Pools.Known() || !s.System.Known() || s.Up() {
 			t.Errorf("after three intervals: pools known %t, system known %t, up %t; want the last answers still served and the NAS down", s.Pools.Known(), s.System.Known(), s.Up())
 		}
@@ -277,8 +288,8 @@ func TestAPollIsGivenItsInterval(t *testing.T) {
 		nas := &polltest.NAS{Slow: time.Hour}
 		p := newPoller(t, nas)
 
-		p.Poll(t.Context(), poll.AreaSystem)
-		p.Poll(t.Context(), poll.AreaSnapshots)
+		_ = p.Poll(t.Context(), poll.AreaSystem)
+		_ = p.Poll(t.Context(), poll.AreaSnapshots)
 		s := p.State()
 
 		if r := s.Rounds[poll.AreaSystem]; !r.Ran || r.OK || r.Took != 30*time.Second || r.Failures != 1 {
@@ -303,7 +314,7 @@ func TestStoppingIsNotAFailure(t *testing.T) {
 			time.Sleep(time.Second)
 			cancel()
 		}()
-		p.Poll(ctx, poll.AreaSystem)
+		_ = p.Poll(ctx, poll.AreaSystem)
 
 		if r := p.State().Rounds[poll.AreaSystem]; r.Ran || r.Failures != 0 {
 			t.Errorf("system = %+v, want nothing recorded for a poll that was stopped", r)

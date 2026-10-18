@@ -2,10 +2,9 @@ package cli
 
 import (
 	"os/signal"
-	"sync"
 	"syscall"
 
-	"github.com/katbyte/go-kt/pmetrics"
+	"github.com/katbyte/go-kt/prometheus/exporter"
 	"github.com/spf13/cobra"
 )
 
@@ -66,15 +65,7 @@ TRUENAS_EXPORTER_INTERVALS and TRUENAS_EXPORTER_CLOCK_CORRECTION.`,
 			ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
 			defer stop()
 
-			var wg sync.WaitGroup
-			wg.Go(func() { p.Run(ctx) })
-
-			err = pmetrics.Serve(ctx, f.Listen, page.Handler())
-			// serving can end by itself, on a port already taken say, and the polling has to end with it
-			stop()
-			wg.Wait()
-
-			return err
+			return exporter.Serve(ctx, f.Listen, p, page)
 		},
 	}
 }

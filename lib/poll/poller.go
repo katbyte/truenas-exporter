@@ -2,17 +2,16 @@ package poll
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"maps"
 	"slices"
-	"strings"
-	"sync"
 	"time"
 
-	"github.com/katbyte/go-kt/clog"
-	"github.com/katbyte/go-kt/outside"
+	"github.com/katbyte/go-kt/prometheus/poller"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+// Namespace starts the name of every reading on the page, the poller's own of how the asking goes among them.
+const Namespace = "truenas"
 
 // Area is one part of the NAS, asked about on a schedule of its own: its apps, say.
 type Area string
@@ -46,10 +45,6 @@ var Areas = []Area{AreaPools, AreaDisks, AreaDatasets, AreaSnapshots, AreaAlerts
 // Every is every area, the NAS's own state first, in the order the page lists them.
 var Every = append([]Area{AreaSystem}, Areas...)
 
-// staleAfter is how many intervals an answer is served for once its area stops being answered: long enough to ride out a failed poll or two, short
-// enough that a NAS down for an hour is not still shown with the pools it had.
-const staleAfter = 3
-
 // Intervals is how often each area is asked about. A poll is also given that long to finish, so one never overlaps the next.
 type Intervals map[Area]time.Duration
 
@@ -67,274 +62,155 @@ func DefaultIntervals() Intervals {
 	}
 }
 
-// Answer is the last good answer to one question.
-type Answer[T any] struct {
-	Value T
-	// At is when it was given, and the zero time for a question never answered.
-	At time.Time
-}
-
-// Known says whether there is an answer to serve.
-func (a Answer[T]) Known() bool { return !a.At.IsZero() }
-
-// RoundState is how the last poll of one area went.
-type RoundState struct {
-	// Interval is how often the area is asked about.
-	Interval time.Duration
-	// Ran says a poll has finished since the start; until one has, the rest says nothing.
-	Ran bool
-	// OK says every question of the last poll was answered.
-	OK   bool
-	Took time.Duration
-	// LastSuccess is the zero time until a poll succeeds.
-	LastSuccess time.Time
-	// Failures counts the polls that failed since the start.
-	Failures int
-}
-
 // State is what is known of the NAS: the last good answer to each question, and how the last poll of each area went.
 type State struct {
-	System    Answer[System]
-	Pools     Answer[[]Pool]
-	BootPool  Answer[Pool]
-	Disks     Answer[[]Disk]
-	Datasets  Answer[[]Dataset]
-	Snapshots Answer[[]SnapshotCount]
-	Alerts    Answer[[]Alert]
-	Services  Answer[[]Service]
-	Jobs      Answer[[]Job]
-	Apps      Answer[Apps]
-	VMs       Answer[[]VM]
-	Shares    Answer[[]Share]
-	Clients   Answer[[]Clients]
-	Tasks     Answer[[]Task]
+	System    poller.Answer[System]
+	Pools     poller.Answer[[]Pool]
+	BootPool  poller.Answer[Pool]
+	Disks     poller.Answer[[]Disk]
+	Datasets  poller.Answer[[]Dataset]
+	Snapshots poller.Answer[[]SnapshotCount]
+	Alerts    poller.Answer[[]Alert]
+	Services  poller.Answer[[]Service]
+	Jobs      poller.Answer[[]Job]
+	Apps      poller.Answer[Apps]
+	VMs       poller.Answer[[]VM]
+	Shares    poller.Answer[[]Share]
+	Clients   poller.Answer[[]Clients]
+	Tasks     poller.Answer[[]Task]
 
-	Update       Answer[Update]
-	Interfaces   Answer[[]Interface]
-	Certificates Answer[[]Certificate]
-	Directory    Answer[Directory]
-	Key          Answer[Key]
+	Update       poller.Answer[Update]
+	Interfaces   poller.Answer[[]Interface]
+	Certificates poller.Answer[[]Certificate]
+	Directory    poller.Answer[Directory]
+	Key          poller.Answer[Key]
 
 	// Rounds is how the last poll of each area asked about went. An area left out has none.
-	Rounds map[Area]RoundState
+	Rounds map[Area]poller.Round
 }
 
 // Up says whether the NAS answered the last time it was asked about its own state. One area failing says a read went wrong, not that the NAS is gone.
 func (s *State) Up() bool { return s.Rounds[AreaSystem].OK }
 
-// Answered says whether the last poll of every area asked about was answered in full.
-func (s *State) Answered() bool {
-	for _, r := range s.Rounds {
-		if !r.OK {
-			return false
-		}
-	}
-
-	return true
-}
-
-// question asks the NAS one thing and keeps its answer.
-type question struct {
-	ask func(ctx context.Context, p *Poller) error
-	// fresh forgets the answer once it is older than limit.
-	fresh func(s *State, now time.Time, limit time.Duration)
-}
-
-// asking is the question method puts, its answer kept in the place into names. An answer is stored whole and never changed afterwards, so State can
-// hand it out without copying.
-func asking[T any](what string, method func(NAS, context.Context) (T, error), into func(*State) *Answer[T]) question {
-	return question{
-		ask: func(ctx context.Context, p *Poller) error {
-			value, err := method(p.nas, ctx)
-			if err != nil {
-				return fmt.Errorf("%s: %w", what, err)
-			}
-
-			p.mu.Lock()
-			defer p.mu.Unlock()
-
-			*into(&p.state) = Answer[T]{Value: value, At: time.Now()}
-
-			return nil
-		},
-		fresh: func(s *State, now time.Time, limit time.Duration) {
-			if a := into(s); a.Known() && now.Sub(a.At) > limit {
-				*a = Answer[T]{}
-			}
-		},
-	}
-}
-
-// questions is what is asked of the NAS about each area.
-var questions = map[Area][]question{
-	AreaSystem:       {asking("system", NAS.System, func(s *State) *Answer[System] { return &s.System })},
-	AreaPools:        {asking("pools", NAS.Pools, func(s *State) *Answer[[]Pool] { return &s.Pools }), asking("boot pool", NAS.BootPool, func(s *State) *Answer[Pool] { return &s.BootPool })},
-	AreaDisks:        {asking("disks", NAS.Disks, func(s *State) *Answer[[]Disk] { return &s.Disks })},
-	AreaDatasets:     {asking("datasets", NAS.Datasets, func(s *State) *Answer[[]Dataset] { return &s.Datasets })},
-	AreaSnapshots:    {asking("snapshots", NAS.Snapshots, func(s *State) *Answer[[]SnapshotCount] { return &s.Snapshots })},
-	AreaAlerts:       {asking("alerts", NAS.Alerts, func(s *State) *Answer[[]Alert] { return &s.Alerts })},
-	AreaServices:     {asking("services", NAS.Services, func(s *State) *Answer[[]Service] { return &s.Services })},
-	AreaJobs:         {asking("jobs", NAS.Jobs, func(s *State) *Answer[[]Job] { return &s.Jobs })},
-	AreaApps:         {asking("apps", NAS.Apps, func(s *State) *Answer[Apps] { return &s.Apps })},
-	AreaVMs:          {asking("virtual machines", NAS.VMs, func(s *State) *Answer[[]VM] { return &s.VMs })},
-	AreaShares:       {asking("shares", NAS.Shares, func(s *State) *Answer[[]Share] { return &s.Shares })},
-	AreaClients:      {asking("clients", NAS.Clients, func(s *State) *Answer[[]Clients] { return &s.Clients })},
-	AreaTasks:        {asking("tasks", NAS.Tasks, func(s *State) *Answer[[]Task] { return &s.Tasks })},
-	AreaUpdates:      {asking("update", NAS.Update, func(s *State) *Answer[Update] { return &s.Update })},
-	AreaInterfaces:   {asking("interfaces", NAS.Interfaces, func(s *State) *Answer[[]Interface] { return &s.Interfaces })},
-	AreaCertificates: {asking("certificates", NAS.Certificates, func(s *State) *Answer[[]Certificate] { return &s.Certificates })},
-	AreaDirectory:    {asking("directory service", NAS.Directory, func(s *State) *Answer[Directory] { return &s.Directory })},
-	AreaKeyExpiry:    {asking("API key", NAS.Key, func(s *State) *Answer[Key] { return &s.Key })},
-}
-
-// Poller asks one NAS about each area on that area's own schedule, and remembers the last good answer to each question.
+// Poller asks one NAS about each area on that area's own schedule, keeps the last good answer to each question, and writes how the asking goes as
+// readings of its own: truenas_poll_duration_seconds and the rest.
 type Poller struct {
-	nas   NAS
-	every Intervals
+	asks *poller.Poller[struct{}]
 	// areas is the areas asked about, in the order of Every.
 	areas []Area
 
-	mu    sync.RWMutex
-	state State
+	system       *poller.Kept[System]
+	pools        *poller.Kept[[]Pool]
+	bootPool     *poller.Kept[Pool]
+	disks        *poller.Kept[[]Disk]
+	datasets     *poller.Kept[[]Dataset]
+	snapshots    *poller.Kept[[]SnapshotCount]
+	alerts       *poller.Kept[[]Alert]
+	services     *poller.Kept[[]Service]
+	jobs         *poller.Kept[[]Job]
+	apps         *poller.Kept[Apps]
+	vms          *poller.Kept[[]VM]
+	shares       *poller.Kept[[]Share]
+	clients      *poller.Kept[[]Clients]
+	tasks        *poller.Kept[[]Task]
+	update       *poller.Kept[Update]
+	interfaces   *poller.Kept[[]Interface]
+	certificates *poller.Kept[[]Certificate]
+	directory    *poller.Kept[Directory]
+	key          *poller.Kept[Key]
 }
 
 // New is a poller for one NAS that asks about every area but those in skip, each as often as every says. It asks nothing until Run or Poll.
 func New(nas NAS, every Intervals, skip ...Area) (*Poller, error) {
-	areas := slices.DeleteFunc(slices.Clone(Every), func(a Area) bool { return a != AreaSystem && slices.Contains(skip, a) })
+	asks, err := poller.New(poller.Options[struct{}]{Namespace: Namespace, Kind: "NAS"})
+	if err != nil {
+		return nil, err
+	}
 
-	rounds := map[Area]RoundState{}
-	for _, area := range areas {
+	p := &Poller{asks: asks, areas: slices.DeleteFunc(slices.Clone(Every), func(a Area) bool { return a != AreaSystem && slices.Contains(skip, a) })}
+	for _, area := range p.areas {
 		if every[area] <= 0 {
 			return nil, fmt.Errorf("%s has to be asked about every so often, and not every %s", area, every[area])
 		}
 
-		rounds[area] = RoundState{Interval: every[area]}
+		p.ask(nas, area, asks.Schedule(string(area), every[area]))
 	}
 
-	return &Poller{nas: nas, every: maps.Clone(every), areas: areas, state: State{Rounds: rounds}}, nil
+	return p, nil
+}
+
+// ask puts the questions about one area on its schedule. They are put at once, and the NAS answers them over one connection, as its own pages do.
+func (p *Poller) ask(nas NAS, area Area, s *poller.Schedule[struct{}]) {
+	switch area {
+	case AreaSystem:
+		p.system = poller.AskOne(s, "system", nas.System)
+	case AreaPools:
+		p.pools = poller.AskOne(s, "pools", nas.Pools)
+		p.bootPool = poller.AskOne(s, "boot pool", nas.BootPool)
+	case AreaDisks:
+		p.disks = poller.AskOne(s, "disks", nas.Disks)
+	case AreaDatasets:
+		p.datasets = poller.AskOne(s, "datasets", nas.Datasets)
+	case AreaSnapshots:
+		p.snapshots = poller.AskOne(s, "snapshots", nas.Snapshots)
+	case AreaAlerts:
+		p.alerts = poller.AskOne(s, "alerts", nas.Alerts)
+	case AreaServices:
+		p.services = poller.AskOne(s, "services", nas.Services)
+	case AreaJobs:
+		p.jobs = poller.AskOne(s, "jobs", nas.Jobs)
+	case AreaApps:
+		p.apps = poller.AskOne(s, "apps", nas.Apps)
+	case AreaVMs:
+		p.vms = poller.AskOne(s, "virtual machines", nas.VMs)
+	case AreaShares:
+		p.shares = poller.AskOne(s, "shares", nas.Shares)
+	case AreaClients:
+		p.clients = poller.AskOne(s, "clients", nas.Clients)
+	case AreaTasks:
+		p.tasks = poller.AskOne(s, "tasks", nas.Tasks)
+	case AreaUpdates:
+		p.update = poller.AskOne(s, "update", nas.Update)
+	case AreaInterfaces:
+		p.interfaces = poller.AskOne(s, "interfaces", nas.Interfaces)
+	case AreaCertificates:
+		p.certificates = poller.AskOne(s, "certificates", nas.Certificates)
+	case AreaDirectory:
+		p.directory = poller.AskOne(s, "directory service", nas.Directory)
+	case AreaKeyExpiry:
+		p.key = poller.AskOne(s, "API key", nas.Key)
+	}
 }
 
 // Run polls until the context ends: every area at once on start, then each on its own interval.
-func (p *Poller) Run(ctx context.Context) {
-	var wg sync.WaitGroup
-	for _, area := range p.areas {
-		wg.Go(func() { p.loop(ctx, area) })
-	}
-	wg.Wait()
-}
+func (p *Poller) Run(ctx context.Context) { p.asks.Run(ctx) }
 
-// PollAll polls every area once, all at once, as Run does on start.
-func (p *Poller) PollAll(ctx context.Context) {
-	var wg sync.WaitGroup
-	for _, area := range p.areas {
-		wg.Go(func() { p.Poll(ctx, area) })
-	}
-	wg.Wait()
-}
+// PollAll polls every area once, all at once, as Run does on start, and says which failed. Why each did is in the log.
+func (p *Poller) PollAll(ctx context.Context) error { return p.asks.PollAll(ctx) }
 
-// loop polls one area now and then every interval, until the context ends.
-func (p *Poller) loop(ctx context.Context, area Area) {
-	ticker := time.NewTicker(p.every[area])
-	defer ticker.Stop()
+// Poll asks about one area now, records how it went, and says what failed and why. A question that fails leaves its last good answer where it was,
+// and does not stop the others being asked. An area left out is not asked about.
+func (p *Poller) Poll(ctx context.Context, area Area) error { return p.asks.Poll(ctx, string(area)) }
 
-	for {
-		p.Poll(ctx, area)
+// Describe names the poller's readings of how the asking goes.
+func (p *Poller) Describe(ch chan<- *prometheus.Desc) { p.asks.Describe(ch) }
 
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
-}
-
-// Poll asks about one area now and records how it went. A question that fails leaves its last good answer where it was, and does not stop the
-// others being asked. An area left out is not asked about.
-func (p *Poller) Poll(ctx context.Context, area Area) {
-	if !slices.Contains(p.areas, area) {
-		return
-	}
-
-	within, cancel := context.WithTimeout(ctx, p.every[area])
-	defer cancel()
-
-	start := time.Now()
-	err := p.ask(within, area)
-	// a poll cut short because the program is stopping says nothing about the NAS
-	if err != nil && ctx.Err() != nil {
-		return
-	}
-
-	p.report(area, p.record(area, time.Since(start), err), err)
-}
-
-// ask puts every question about one area at once, and gives back what failed. The NAS answers them over one connection, as its own pages do.
-func (p *Poller) ask(ctx context.Context, area Area) error {
-	failed := make([]error, len(questions[area]))
-
-	var wg sync.WaitGroup
-	for i, q := range questions[area] {
-		wg.Go(func() { failed[i] = q.ask(ctx, p) })
-	}
-	wg.Wait()
-
-	return errors.Join(failed...)
-}
-
-// record keeps how a poll went, and gives back how the one before it did.
-func (p *Poller) record(area Area, took time.Duration, err error) RoundState {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	r := p.state.Rounds[area]
-	before := r
-	r.Ran, r.OK, r.Took = true, err == nil, took
-	if err != nil {
-		r.Failures++
-	} else {
-		r.LastSuccess = time.Now()
-	}
-	p.state.Rounds[area] = r
-
-	return before
-}
-
-// report logs a poll only when it changes, since a NAS that is down fails every poll the same way. Of the polls that go well, only the first of the
-// NAS's own state is logged: it says the NAS is there.
-func (p *Poller) report(area Area, before RoundState, err error) {
-	switch {
-	case err != nil && (before.OK || !before.Ran):
-		clog.Log.Warnf("asking about %s failed, and will be tried again every %s: %s", area, p.every[area], said(err))
-	case err != nil:
-		clog.Log.Debugf("asking about %s failed again: %s", area, said(err))
-	case before.Ran && !before.OK:
-		clog.Log.Infof("%s is answered again", area)
-	case !before.Ran && area == AreaSystem:
-		clog.Log.Infof("the NAS answered")
-	}
-}
-
-// said is what went wrong as one line of a log: a poll's failures come one to a line, and a NAS's own words for one may quote an address with a key
-// on it.
-func said(err error) string {
-	return strings.ReplaceAll(outside.BlankAddresses(err.Error()), "\n", "; ")
-}
+// Collect writes how the asking goes: how often each area is asked about, how long its last poll took, how many have failed and when one last
+// succeeded.
+func (p *Poller) Collect(ch chan<- prometheus.Metric) { p.asks.Collect(ch) }
 
 // State is what is known of the NAS now, without asking it anything. An answer older than three of its area's intervals is left out: the NAS has
-// stopped answering, and what it last said is no longer worth showing as current.
+// stopped answering, and what it last said is no longer worth showing as current. An area left out has no answer.
 func (p *Poller) State() State {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	s := p.state
-	s.Rounds = maps.Clone(p.state.Rounds)
-
-	now := time.Now()
+	rounds := make(map[Area]poller.Round, len(p.areas))
 	for _, area := range p.areas {
-		for _, q := range questions[area] {
-			q.fresh(&s, now, staleAfter*p.every[area])
-		}
+		rounds[area] = p.asks.Round("", string(area))
 	}
 
-	return s
+	return State{
+		System: p.system.Answer(), Pools: p.pools.Answer(), BootPool: p.bootPool.Answer(), Disks: p.disks.Answer(), Datasets: p.datasets.Answer(), Snapshots: p.snapshots.Answer(),
+		Alerts: p.alerts.Answer(), Services: p.services.Answer(), Jobs: p.jobs.Answer(), Apps: p.apps.Answer(), VMs: p.vms.Answer(), Shares: p.shares.Answer(),
+		Clients: p.clients.Answer(), Tasks: p.tasks.Answer(), Update: p.update.Answer(), Interfaces: p.interfaces.Answer(), Certificates: p.certificates.Answer(),
+		Directory: p.directory.Answer(), Key: p.key.Answer(), Rounds: rounds,
+	}
 }

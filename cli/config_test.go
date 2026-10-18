@@ -325,7 +325,7 @@ func TestIntervals(t *testing.T) {
 		t.Errorf("--intervals %q = %v, want %v", f.Intervals, got, want)
 	}
 
-	for _, bad := range []string{"smart=1m", "snapshots", "snapshots=soon", "snapshots=0s", "snapshots=-1m", "=1m"} {
+	for _, bad := range []string{"smart=1m", "snapshots", "snapshots=soon", "snapshots=0s", "snapshots=-1m", "=1m", "snapshots=1m,snapshots=2m"} {
 		f := FlagData{Intervals: bad}
 
 		if _, err := f.intervals(); err == nil || !strings.Contains(err.Error(), "TRUENAS_EXPORTER_INTERVALS") {

@@ -4,36 +4,25 @@ package readings
 import (
 	"slices"
 	"strconv"
-	"strings"
-	"time"
 
+	"github.com/katbyte/go-kt/prometheus/metrics"
 	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Namespace starts every reading's name.
-const Namespace = "truenas"
-
 // DefaultDatasetDepth reports each pool's own dataset and the datasets directly under it.
 const DefaultDatasetDepth = 1
 
-// all is every reading the page can hold, for Describe.
-var all []*prometheus.Desc
+// list is every reading the page can hold.
+var list = metrics.NewList(poll.Namespace)
 
 // reading describes one reading of the NAS.
 func reading(name, help string, labels ...string) *prometheus.Desc {
-	d := prometheus.NewDesc(Namespace+"_"+name, help, labels, nil)
-	all = append(all, d)
-
-	return d
+	return list.Reading(name, help, labels...)
 }
 
 var (
-	up              = reading("up", "Whether the NAS answered the last time it was asked about its own state (1) or not (0).")
-	pollInterval    = reading("poll_interval_seconds", "How often each part of the NAS is asked about.", "poll")
-	pollDuration    = reading("poll_duration_seconds", "How long the last poll of each part of the NAS took.", "poll")
-	pollLastSuccess = reading("poll_last_success_timestamp_seconds", "When each part of the NAS was last answered in full, in seconds since 1970.", "poll")
-	pollFailures    = reading("poll_failures_total", "How many polls of each part of the NAS have failed since truenas-exporter started.", "poll")
+	up = reading("up", "Whether the NAS answered the last time it was asked about its own state (1) or not (0).")
 
 	systemInfo        = reading("system_info", "Always 1, with the version of TrueNAS and the machine it runs on.", "version", "product", "manufacturer", "cpu")
 	systemState       = reading("system_state", "Whether the NAS is in each state (1) or not (0): BOOTING, READY or SHUTTING_DOWN.", "state")
@@ -171,19 +160,15 @@ func New(source Source, o Options) *Readings {
 }
 
 // Describe names every reading there can be.
-func (*Readings) Describe(ch chan<- *prometheus.Desc) {
-	for _, d := range all {
-		ch <- d
-	}
-}
+func (*Readings) Describe(ch chan<- *prometheus.Desc) { list.Describe(ch) }
 
 // Collect writes every reading there is an answer for. A question the NAS has never answered has no reading, which is not the same as a reading of
 // zero.
 func (r *Readings) Collect(ch chan<- prometheus.Metric) {
 	s := r.source.State()
-	w := &writer{ch: ch, written: map[string]bool{}}
+	w := &writer{metrics.NewWriter(ch)}
 
-	w.rounds(&s)
+	w.up(&s)
 	w.system(&s)
 	w.pools(&s)
 	w.disks(&s)
@@ -200,76 +185,12 @@ func (r *Readings) Collect(ch chan<- prometheus.Metric) {
 }
 
 // writer writes the NAS's readings.
-type writer struct {
-	ch chan<- prometheus.Metric
-	// written is every reading written so far, by name and labels. The NAS's names are its own and nothing promises two tasks or two disks will not
-	// share one, and two readings with the same labels would spoil the whole page: the second is left off.
-	written map[string]bool
-}
+type writer struct{ *metrics.Writer }
 
-// write writes one reading, unless one of that name and those labels is already on the page.
-func (w *writer) write(d *prometheus.Desc, kind prometheus.ValueType, value float64, labels ...string) {
-	key := d.String() + "\x00" + strings.Join(labels, "\x00")
-	if w.written[key] {
-		return
-	}
-	w.written[key] = true
-
-	w.ch <- prometheus.MustNewConstMetric(d, kind, value, labels...)
-}
-
-// gauge writes one reading that can go up and down.
-func (w *writer) gauge(d *prometheus.Desc, value float64, labels ...string) {
-	w.write(d, prometheus.GaugeValue, value, labels...)
-}
-
-// count is gauge for a whole number.
-func (w *writer) count(d *prometheus.Desc, n int, labels ...string) {
-	w.gauge(d, float64(n), labels...)
-}
-
-// bytes is gauge for a size.
-func (w *writer) bytes(d *prometheus.Desc, n int64, labels ...string) {
-	w.gauge(d, float64(n), labels...)
-}
-
-// flag is gauge for a yes or no: 1 or 0.
-func (w *writer) flag(d *prometheus.Desc, yes bool, labels ...string) {
-	if yes {
-		w.gauge(d, 1, labels...)
-		return
-	}
-
-	w.gauge(d, 0, labels...)
-}
-
-// at is gauge for a moment, in seconds since 1970.
-func (w *writer) at(d *prometheus.Desc, t time.Time, labels ...string) {
-	w.gauge(d, float64(t.UnixMilli())/1000, labels...)
-}
-
-// rounds is how the polling itself is going, which is what says how far to trust the rest. An area left out has nothing here either.
-func (w *writer) rounds(s *poll.State) {
+// up says whether the NAS answers, which is what says how far to trust the rest. The poller writes how each part's own asking goes.
+func (w *writer) up(s *poll.State) {
 	if s.Rounds[poll.AreaSystem].Ran {
-		w.flag(up, s.Up())
-	}
-
-	for _, area := range poll.Every {
-		r, asked := s.Rounds[area]
-		if !asked {
-			continue
-		}
-
-		w.gauge(pollInterval, r.Interval.Seconds(), string(area))
-		if !r.Ran {
-			continue
-		}
-
-		w.gauge(pollDuration, r.Took.Seconds(), string(area))
-		w.write(pollFailures, prometheus.CounterValue, float64(r.Failures), string(area))
-		if !r.LastSuccess.IsZero() {
-			w.at(pollLastSuccess, r.LastSuccess, string(area))
-		}
+		w.Flag(up, s.Up())
 	}
 }
 
@@ -277,39 +198,25 @@ func (w *writer) rounds(s *poll.State) {
 func (w *writer) system(s *poll.State) {
 	if s.System.Known() {
 		i := s.System.Value
-		w.gauge(systemInfo, 1, i.Version, i.Product, i.Manufacturer, i.CPU)
-		w.states(systemState, poll.SystemStates, i.State)
-		w.gauge(systemUptime, i.Uptime.Seconds())
-		w.bytes(systemMemory, i.Memory)
-		w.count(systemCores, i.Cores)
-		w.count(systemPhysical, i.PhysicalCores)
-		w.flag(systemECC, i.ECC)
-		w.gauge(systemClockOffset, i.ClockOffset.Seconds())
+		w.Gauge(systemInfo, 1, i.Version, i.Product, i.Manufacturer, i.CPU)
+		w.States(systemState, poll.SystemStates, i.State)
+		w.Gauge(systemUptime, i.Uptime.Seconds())
+		w.Gauge(systemMemory, i.Memory)
+		w.Gauge(systemCores, i.Cores)
+		w.Gauge(systemPhysical, i.PhysicalCores)
+		w.Flag(systemECC, i.ECC)
+		w.Gauge(systemClockOffset, i.ClockOffset.Seconds())
 
-		if !i.Booted.IsZero() {
-			w.at(systemBoot, i.Booted)
-		}
+		w.At(systemBoot, i.Booted)
 
 		for n, window := range loadWindows {
-			w.gauge(systemLoad, i.Load[n], window)
+			w.Gauge(systemLoad, i.Load[n], window)
 		}
 	}
 
 	if s.Update.Known() {
-		w.flag(updateAvailable, s.Update.Value.Available)
-		w.flag(updateCheckFailed, s.Update.Value.CheckFailed)
-	}
-}
-
-// states writes 1 for the state something is in and 0 for each of the others it could be in, so none vanishes when it is left. A state that is not
-// one of those known is written too, at 1: a NAS newer than this may have states this has not heard of.
-func (w *writer) states(d *prometheus.Desc, known []string, is string) {
-	for _, state := range known {
-		w.flag(d, state == is, state)
-	}
-
-	if is != "" && !slices.Contains(known, is) {
-		w.gauge(d, 1, is)
+		w.Flag(updateAvailable, s.Update.Value.Available)
+		w.Flag(updateCheckFailed, s.Update.Value.CheckFailed)
 	}
 }
 
@@ -328,19 +235,19 @@ func (w *writer) pools(s *poll.State) {
 	for i := range every {
 		p := &every[i]
 
-		w.flag(poolHealthy, p.Healthy, p.Name)
-		w.flag(poolWarning, p.Warning, p.Name)
-		w.bytes(poolSize, p.Size, p.Name)
-		w.bytes(poolAllocated, p.Allocated, p.Name)
-		w.bytes(poolFree, p.Free, p.Name)
-		w.bytes(poolFreeing, p.Freeing, p.Name)
+		w.Flag(poolHealthy, p.Healthy, p.Name)
+		w.Flag(poolWarning, p.Warning, p.Name)
+		w.Gauge(poolSize, p.Size, p.Name)
+		w.Gauge(poolAllocated, p.Allocated, p.Name)
+		w.Gauge(poolFree, p.Free, p.Name)
+		w.Gauge(poolFreeing, p.Freeing, p.Name)
 
 		if p.Status != "" {
-			w.gauge(poolStatus, 1, p.Name, p.Status)
+			w.Gauge(poolStatus, 1, p.Name, p.Status)
 		}
 
 		if p.Fragmentation != nil {
-			w.gauge(poolFragmentation, *p.Fragmentation, p.Name)
+			w.Gauge(poolFragmentation, *p.Fragmentation, p.Name)
 		}
 
 		w.scan(p)
@@ -358,7 +265,7 @@ func (w *writer) scan(p *poll.Pool) {
 	running := scan != nil && scan.State == poll.ScanRunning
 
 	for _, function := range poll.ScanFunctions {
-		w.flag(scanRunning, running && scan.Function == function, p.Name, function)
+		w.Flag(scanRunning, running && scan.Function == function, p.Name, function)
 	}
 
 	if scan == nil {
@@ -367,57 +274,57 @@ func (w *writer) scan(p *poll.Pool) {
 
 	// a function this has not heard of is still running, and is said to be under its own name
 	if running && !slices.Contains(poll.ScanFunctions, scan.Function) {
-		w.gauge(scanRunning, 1, p.Name, scan.Function)
+		w.Gauge(scanRunning, 1, p.Name, scan.Function)
 	}
 
-	w.flag(scanPaused, scan.Paused, p.Name, scan.Function)
-	w.gauge(scanProgress, scan.Progress, p.Name, scan.Function)
-	w.gauge(scanErrors, float64(scan.Errors), p.Name, scan.Function)
-	w.bytes(scanToExamine, scan.ToExamine, p.Name, scan.Function)
-	w.bytes(scanExamined, scan.Examined, p.Name, scan.Function)
-	w.bytes(scanIssued, scan.Issued, p.Name, scan.Function)
+	w.Flag(scanPaused, scan.Paused, p.Name, scan.Function)
+	w.Gauge(scanProgress, scan.Progress, p.Name, scan.Function)
+	w.Gauge(scanErrors, float64(scan.Errors), p.Name, scan.Function)
+	w.Gauge(scanToExamine, scan.ToExamine, p.Name, scan.Function)
+	w.Gauge(scanExamined, scan.Examined, p.Name, scan.Function)
+	w.Gauge(scanIssued, scan.Issued, p.Name, scan.Function)
 
 	if !scan.Started.IsZero() {
-		w.at(scanStart, scan.Started, p.Name, scan.Function)
+		w.At(scanStart, scan.Started, p.Name, scan.Function)
 	}
 
 	if !running && !scan.Ended.IsZero() {
-		w.at(scanEnd, scan.Ended, p.Name, scan.Function)
+		w.At(scanEnd, scan.Ended, p.Name, scan.Function)
 	}
 
 	if running && scan.Left != nil {
-		w.gauge(scanRemaining, scan.Left.Seconds(), p.Name, scan.Function)
+		w.Gauge(scanRemaining, scan.Left.Seconds(), p.Name, scan.Function)
 	}
 }
 
 // vdev is one top-level vdev and its disks. Size and what is written to it are left off a vdev that holds no data of its own, a spare say, since a
 // size of 0 would read as a disk of no size.
 func (w *writer) vdev(pool string, v *poll.Vdev, serials map[string]string) {
-	w.gauge(vdevInfo, 1, pool, v.Class, v.Name, v.Type)
-	w.gauge(vdevRead, float64(v.Errors.Read), pool, v.Class, v.Name)
-	w.gauge(vdevWrite, float64(v.Errors.Write), pool, v.Class, v.Name)
-	w.gauge(vdevChecksum, float64(v.Errors.Checksum), pool, v.Class, v.Name)
+	w.Gauge(vdevInfo, 1, pool, v.Class, v.Name, v.Type)
+	w.Gauge(vdevRead, float64(v.Errors.Read), pool, v.Class, v.Name)
+	w.Gauge(vdevWrite, float64(v.Errors.Write), pool, v.Class, v.Name)
+	w.Gauge(vdevChecksum, float64(v.Errors.Checksum), pool, v.Class, v.Name)
 
 	if v.Status != "" {
-		w.gauge(vdevStatus, 1, pool, v.Class, v.Name, v.Status)
+		w.Gauge(vdevStatus, 1, pool, v.Class, v.Name, v.Status)
 	}
 
 	if v.Size > 0 {
-		w.bytes(vdevSize, v.Size, pool, v.Class, v.Name)
-		w.bytes(vdevAllocated, v.Allocated, pool, v.Class, v.Name)
-		w.gauge(vdevFragmentation, v.Fragmentation, pool, v.Class, v.Name)
+		w.Gauge(vdevSize, v.Size, pool, v.Class, v.Name)
+		w.Gauge(vdevAllocated, v.Allocated, pool, v.Class, v.Name)
+		w.Gauge(vdevFragmentation, v.Fragmentation, pool, v.Class, v.Name)
 	}
 
 	for i := range v.Devices {
 		d := &v.Devices[i]
 		serial := serials[d.Disk]
 
-		w.gauge(deviceRead, float64(d.Errors.Read), pool, v.Class, v.Name, d.Disk, serial)
-		w.gauge(deviceWrite, float64(d.Errors.Write), pool, v.Class, v.Name, d.Disk, serial)
-		w.gauge(deviceChecksum, float64(d.Errors.Checksum), pool, v.Class, v.Name, d.Disk, serial)
+		w.Gauge(deviceRead, float64(d.Errors.Read), pool, v.Class, v.Name, d.Disk, serial)
+		w.Gauge(deviceWrite, float64(d.Errors.Write), pool, v.Class, v.Name, d.Disk, serial)
+		w.Gauge(deviceChecksum, float64(d.Errors.Checksum), pool, v.Class, v.Name, d.Disk, serial)
 
 		if d.Status != "" {
-			w.gauge(deviceStatus, 1, pool, v.Class, v.Name, d.Disk, serial, d.Status)
+			w.Gauge(deviceStatus, 1, pool, v.Class, v.Name, d.Disk, serial, d.Status)
 		}
 	}
 }
@@ -475,11 +382,11 @@ func (w *writer) disks(s *poll.State) {
 			enclosure, slot = strconv.Itoa(d.Slot.Enclosure), strconv.Itoa(d.Slot.Slot)
 		}
 
-		w.gauge(diskInfo, 1, d.Name, d.Serial, d.WWN, d.Model, d.Type, d.Bus, pools[d.Name], enclosure, slot)
-		w.bytes(diskSize, d.Size, d.Name, d.Serial)
+		w.Gauge(diskInfo, 1, d.Name, d.Serial, d.WWN, d.Model, d.Type, d.Bus, pools[d.Name], enclosure, slot)
+		w.Gauge(diskSize, d.Size, d.Name, d.Serial)
 
 		if d.Temperature != nil {
-			w.gauge(diskTemperature, *d.Temperature, d.Name, d.Serial)
+			w.Gauge(diskTemperature, *d.Temperature, d.Name, d.Serial)
 		}
 	}
 }
@@ -500,26 +407,26 @@ func (w *writer) datasets(s *poll.State, depth int) {
 			continue
 		}
 
-		w.bytes(datasetUsed, d.Used, d.Name, d.Pool)
-		w.bytes(datasetAvailable, d.Available, d.Name, d.Pool)
-		w.bytes(datasetUsedByDataset, d.UsedByDataset, d.Name, d.Pool)
-		w.bytes(datasetUsedBySnapshot, d.UsedBySnapshots, d.Name, d.Pool)
+		w.Gauge(datasetUsed, d.Used, d.Name, d.Pool)
+		w.Gauge(datasetAvailable, d.Available, d.Name, d.Pool)
+		w.Gauge(datasetUsedByDataset, d.UsedByDataset, d.Name, d.Pool)
+		w.Gauge(datasetUsedBySnapshot, d.UsedBySnapshots, d.Name, d.Pool)
 
 		if d.Quota != nil {
-			w.bytes(datasetQuota, *d.Quota, d.Name, d.Pool)
+			w.Gauge(datasetQuota, *d.Quota, d.Name, d.Pool)
 		}
 
 		if d.RefQuota != nil {
-			w.bytes(datasetRefQuota, *d.RefQuota, d.Name, d.Pool)
+			w.Gauge(datasetRefQuota, *d.RefQuota, d.Name, d.Pool)
 		}
 
 		if d.Compression > 0 {
-			w.gauge(datasetCompression, d.Compression, d.Name, d.Pool)
+			w.Gauge(datasetCompression, d.Compression, d.Name, d.Pool)
 		}
 	}
 
 	for pool, n := range total {
-		w.count(datasets, n, pool)
+		w.Gauge(datasets, n, pool)
 	}
 }
 
@@ -535,12 +442,12 @@ func (w *writer) snapshots(s *poll.State, depth int) {
 
 		total[c.Pool] += c.Count
 		if c.Depth() <= depth {
-			w.count(datasetSnapshots, c.Count, c.Dataset, c.Pool)
+			w.Gauge(datasetSnapshots, c.Count, c.Dataset, c.Pool)
 		}
 	}
 
 	for pool, n := range total {
-		w.count(snapshots, n, pool)
+		w.Gauge(snapshots, n, pool)
 	}
 }
 
@@ -566,15 +473,15 @@ func (w *writer) alerts(s *poll.State) {
 	}
 
 	for _, level := range poll.AlertLevels {
-		w.count(alerts, levels[level], level)
+		w.Gauge(alerts, levels[level], level)
 	}
 	for level, n := range levels {
-		w.count(alerts, n, level)
+		w.Gauge(alerts, n, level)
 	}
 	for k, n := range kinds {
-		w.count(alertsByClass, n, k.level, k.class)
+		w.Gauge(alertsByClass, n, k.level, k.class)
 	}
-	w.count(alertsDismissed, dismissed)
+	w.Gauge(alertsDismissed, dismissed)
 }
 
 func (w *writer) services(s *poll.State) {
@@ -583,8 +490,8 @@ func (w *writer) services(s *poll.State) {
 	}
 
 	for _, service := range s.Services.Value {
-		w.flag(serviceRunning, service.Running, service.Name)
-		w.flag(serviceEnabled, service.Enabled, service.Name)
+		w.Flag(serviceRunning, service.Running, service.Name)
+		w.Flag(serviceEnabled, service.Enabled, service.Name)
 	}
 }
 
@@ -602,20 +509,9 @@ func (w *writer) jobs(s *poll.State) {
 		}
 	}
 
-	w.counts(jobs, poll.JobStates, states)
+	w.Counts(jobs, poll.JobStates, states)
 	for method, n := range methods {
-		w.count(jobsRunning, n, method)
-	}
-}
-
-// counts writes how many there are of each kind: every kind known, at 0 when there is none, and any other kind there turns out to be.
-func (w *writer) counts(d *prometheus.Desc, known []string, n map[string]int) {
-	for _, kind := range known {
-		w.count(d, n[kind], kind)
-	}
-
-	for kind, count := range n {
-		w.count(d, count, kind)
+		w.Gauge(jobsRunning, n, method)
 	}
 }
 
@@ -625,16 +521,16 @@ func (w *writer) apps(s *poll.State) {
 	}
 
 	if status := s.Apps.Value.Status; status != "" {
-		w.gauge(appsService, 1, status)
+		w.Gauge(appsService, 1, status)
 	}
 
 	states := map[string]int{}
 	for _, app := range s.Apps.Value.List {
 		states[app.State]++
-		w.gauge(appState, 1, app.Name, app.State)
-		w.flag(appUpdateAvailable, app.UpdateAvailable, app.Name)
+		w.Gauge(appState, 1, app.Name, app.State)
+		w.Flag(appUpdateAvailable, app.UpdateAvailable, app.Name)
 	}
-	w.counts(apps, poll.AppStates, states)
+	w.Counts(apps, poll.AppStates, states)
 }
 
 func (w *writer) vms(s *poll.State) {
@@ -645,9 +541,9 @@ func (w *writer) vms(s *poll.State) {
 	states := map[string]int{}
 	for _, vm := range s.VMs.Value {
 		states[vm.State]++
-		w.gauge(vmState, 1, vm.Name, vm.State)
+		w.Gauge(vmState, 1, vm.Name, vm.State)
 	}
-	w.counts(vms, poll.VMStates, states)
+	w.Counts(vms, poll.VMStates, states)
 }
 
 // shares counts the shares by protocol and state, and the clients connected by protocol. Every protocol and state is written, at 0 when there is
@@ -655,7 +551,7 @@ func (w *writer) vms(s *poll.State) {
 func (w *writer) shares(s *poll.State) {
 	if s.Clients.Known() {
 		for _, c := range s.Clients.Value {
-			w.count(shareClients, c.Count, c.Protocol)
+			w.Gauge(shareClients, c.Count, c.Protocol)
 		}
 	}
 
@@ -679,11 +575,11 @@ func (w *writer) shares(s *poll.State) {
 
 	for _, protocol := range poll.ShareProtocols {
 		for _, state := range []string{shareEnabled, shareDisabled, shareLocked} {
-			w.count(shares, n[kind{protocol, state}], protocol, state)
+			w.Gauge(shares, n[kind{protocol, state}], protocol, state)
 		}
 	}
 	for k, count := range n {
-		w.count(shares, count, k.protocol, k.state)
+		w.Gauge(shares, count, k.protocol, k.state)
 	}
 }
 
@@ -700,7 +596,7 @@ func (w *writer) tasks(s *poll.State) {
 		kind, id := string(task.Kind), strconv.Itoa(task.ID)
 
 		total[task.Kind]++
-		w.flag(taskEnabled, task.Enabled, kind, id, task.Name)
+		w.Flag(taskEnabled, task.Enabled, kind, id, task.Name)
 		if task.Enabled {
 			enabled[task.Kind]++
 		}
@@ -710,10 +606,10 @@ func (w *writer) tasks(s *poll.State) {
 			continue
 		}
 
-		w.flag(taskRunning, task.Running, kind, id, task.Name)
+		w.Flag(taskRunning, task.Running, kind, id, task.Name)
 		if task.Running {
 			running[task.Kind]++
-			w.gauge(taskProgress, task.Progress, kind, id, task.Name)
+			w.Gauge(taskProgress, task.Progress, kind, id, task.Name)
 		}
 
 		run := task.LastRun
@@ -721,27 +617,25 @@ func (w *writer) tasks(s *poll.State) {
 			continue
 		}
 
-		w.flag(taskLastFailed, run.Failed, kind, id, task.Name)
+		w.Flag(taskLastFailed, run.Failed, kind, id, task.Name)
 		if run.Failed {
 			failed[task.Kind]++
 		}
 
-		if !run.Ended.IsZero() {
-			w.at(taskLastEnd, run.Ended, kind, id, task.Name)
-		}
+		w.At(taskLastEnd, run.Ended, kind, id, task.Name)
 
 		if run.Took > 0 {
-			w.gauge(taskLastTook, run.Took.Seconds(), kind, id, task.Name)
+			w.Gauge(taskLastTook, run.Took.Seconds(), kind, id, task.Name)
 		}
 	}
 
 	for _, kind := range poll.TaskKinds {
-		w.count(tasks, total[kind], string(kind))
-		w.count(tasksEnabled, enabled[kind], string(kind))
+		w.Gauge(tasks, total[kind], string(kind))
+		w.Gauge(tasksEnabled, enabled[kind], string(kind))
 
 		if kind != poll.ScrubTask {
-			w.count(tasksRunning, running[kind], string(kind))
-			w.count(tasksFailed, failed[kind], string(kind))
+			w.Gauge(tasksRunning, running[kind], string(kind))
+			w.Gauge(tasksFailed, failed[kind], string(kind))
 		}
 	}
 }
@@ -750,26 +644,24 @@ func (w *writer) tasks(s *poll.State) {
 func (w *writer) rest(s *poll.State) {
 	if s.Certificates.Known() {
 		for _, c := range s.Certificates.Value {
-			if !c.Expires.IsZero() {
-				w.at(certificateEnd, c.Expires, c.Name)
-			}
+			w.At(certificateEnd, c.Expires, c.Name)
 		}
 	}
 
 	if s.Interfaces.Known() {
 		for _, i := range s.Interfaces.Value {
-			w.flag(interfaceLinkUp, i.LinkUp, i.Name, i.Type)
+			w.Flag(interfaceLinkUp, i.LinkUp, i.Name, i.Type)
 			if i.MTU > 0 {
-				w.count(interfaceMTU, i.MTU, i.Name)
+				w.Gauge(interfaceMTU, i.MTU, i.Name)
 			}
 		}
 	}
 
 	if d := s.Directory; d.Known() && d.Value.Type != "" {
-		w.flag(directoryHealthy, d.Value.Status == "HEALTHY", d.Value.Type, d.Value.Status)
+		w.Flag(directoryHealthy, d.Value.Status == "HEALTHY", d.Value.Type, d.Value.Status)
 	}
 
-	if k := s.Key; k.Known() && !k.Value.Expires.IsZero() {
-		w.at(keyExpiry, k.Value.Expires)
+	if k := s.Key; k.Known() {
+		w.At(keyExpiry, k.Value.Expires)
 	}
 }

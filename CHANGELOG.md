@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 (2026-10-18)
+
+Built on go-kt's shared exporter pieces, which the other exporters use too.
+
+- **The build reading takes the program's new name**: `truenas_exporter_build_info`, in place of `truenas_metrics_build_info`.
+- **The four `truenas_poll_*` readings say what they are in new words**, and a part has none until it has been asked once. Their names and labels are unchanged.
+- **`print` names the parts of the NAS that did not answer** when it fails, and the log says "the NAS: the pools round failed".
+- **`--intervals` refuses a part named twice.**
+
 ## 0.2.0 (2026-10-15)
 
 Renamed to truenas-exporter, as nearly every Prometheus exporter is named.

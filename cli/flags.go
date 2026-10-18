@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/katbyte/go-kt/clog"
-	"github.com/katbyte/go-kt/pmetrics"
+	"github.com/katbyte/go-kt/prometheus/metrics"
+	"github.com/katbyte/go-kt/prometheus/poller"
 	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-exporter/lib/readings"
 	"github.com/spf13/cobra"
@@ -222,7 +223,7 @@ func (f *FlagData) connection() (connection, error) {
 // skipped is the parts of the NAS the settings leave unasked: those --metrics does not name, when it names any, and those --skip names. A word that
 // names no part is a mistake said now, since a page quietly missing what was asked for reads as a NAS with none of it.
 func (f *FlagData) skipped() ([]poll.Area, error) {
-	metrics, err := areas("metrics", f.Metrics)
+	named, err := areas("metrics", f.Metrics)
 	if err != nil {
 		return nil, err
 	}
@@ -232,13 +233,13 @@ func (f *FlagData) skipped() ([]poll.Area, error) {
 		return nil, err
 	}
 
-	if len(metrics) == 0 {
-		metrics = poll.Areas
+	if len(named) == 0 {
+		named = poll.Areas
 	}
 
 	var out []poll.Area
 	for _, area := range poll.Areas {
-		if !slices.Contains(metrics, area) || slices.Contains(skip, area) {
+		if !slices.Contains(named, area) || slices.Contains(skip, area) {
 			out = append(out, area)
 		}
 	}
@@ -276,24 +277,19 @@ func areaNames(areas []poll.Area) string {
 // intervals is how often the settings say to ask about each part of the NAS: as often as it is by default, but for the parts --intervals names. A
 // part or a length of time that cannot be read is a mistake said now.
 func (f *FlagData) intervals() (poll.Intervals, error) {
-	every := poll.DefaultIntervals()
-	for pair := range strings.SplitSeq(f.Intervals, ",") {
-		if strings.TrimSpace(pair) == "" {
-			continue
-		}
+	defaults := map[string]time.Duration{}
+	for area, every := range poll.DefaultIntervals() {
+		defaults[string(area)] = every
+	}
 
-		name, length, ok := strings.Cut(pair, "=")
-		area := poll.Area(strings.ToLower(strings.TrimSpace(name)))
-		if _, known := every[area]; !ok || !known {
-			return nil, fmt.Errorf("--intervals (%s) takes part=duration with commas between them, a part being %s, and not %q", envNames["intervals"], areaNames(poll.Every), strings.TrimSpace(pair))
-		}
+	given, err := poller.ParseIntervals(f.Intervals, defaults)
+	if err != nil {
+		return nil, fmt.Errorf("--intervals (%s): %w", envNames["intervals"], err)
+	}
 
-		d, err := time.ParseDuration(strings.TrimSpace(length))
-		if err != nil || d <= 0 {
-			return nil, fmt.Errorf("--intervals (%s) says how often %s is asked about, as 30s or 10m say, and not %q", envNames["intervals"], area, strings.TrimSpace(length))
-		}
-
-		every[area] = d
+	every := poll.Intervals{}
+	for name, length := range given {
+		every[poll.Area(name)] = length
 	}
 
 	return every, nil
@@ -382,13 +378,13 @@ func (f *FlagData) poller(connect connector) (*poll.Poller, func(), error) {
 
 // page is the metrics page of this poller's readings, with the labels the settings ask for on every one. A label that cannot be used is said here,
 // before the NAS is asked anything: one written wrongly, or one named as a reading's own label is, pool say.
-func (f *FlagData) page(p *poll.Poller) (*pmetrics.Page, error) {
-	labels, err := pmetrics.ParseLabels(f.Labels)
+func (f *FlagData) page(p *poll.Poller) (*metrics.Page, error) {
+	labels, err := metrics.ParseLabels(f.Labels)
 	if err != nil {
 		return nil, fmt.Errorf("--labels (%s): %w", envNames["labels"], err)
 	}
 
-	page, err := pmetrics.New(pmetrics.Options{Name: toolName, Namespace: readings.Namespace, Labels: labels}, readings.New(p, readings.Options{DatasetDepth: f.DatasetDepth}))
+	page, err := metrics.New(metrics.Options{Name: toolName, Labels: labels}, readings.New(p, readings.Options{DatasetDepth: f.DatasetDepth}), p)
 	if err != nil {
 		return nil, fmt.Errorf("--labels (%s): %w", envNames["labels"], err)
 	}

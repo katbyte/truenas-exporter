@@ -735,10 +735,8 @@ func TestEveryQuestionOnlyReads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.PollAll(t.Context())
-
-	if s := p.State(); !s.Answered() {
-		t.Fatalf("a poll against the saved answers failed: %+v", s.Rounds)
+	if err := p.PollAll(t.Context()); err != nil {
+		t.Fatalf("a poll against the saved answers failed: %v", err)
 	}
 
 	same(t, "the methods called", c.methods(), reads)

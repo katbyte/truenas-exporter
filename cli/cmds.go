@@ -3,9 +3,9 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 
+	"github.com/katbyte/go-kt/prometheus/exporter"
 	"github.com/katbyte/go-kt/version"
 	"github.com/spf13/cobra"
 )
@@ -64,18 +64,8 @@ reported.`,
 				return err
 			}
 
-			p.PollAll(cmd.Context())
-
-			if err := page.Write(cmd.OutOrStdout()); err != nil {
-				return err
-			}
-
-			// the page is printed either way, with what a NAS that did not answer looks like on it; what went wrong is in the log
-			if s := p.State(); !s.Answered() {
-				return errors.New("the NAS did not answer every question")
-			}
-
-			return nil
+			// the page is printed either way, with what a NAS that did not answer looks like on it; why each part failed is in the log
+			return exporter.Print(cmd.Context(), cmd.OutOrStdout(), p, page)
 		},
 	})
 
