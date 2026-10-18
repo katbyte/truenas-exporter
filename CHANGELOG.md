@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **The readings of how the asking goes can be left off**: `--skip poll` drops the four `truenas_poll_*` readings, and `--metrics` keeps them only when it names `poll`. `truenas_up` stays either way.
+
 ## 0.3.0 (2026-10-18)
 
 Built on go-kt's shared exporter pieces, which the other exporters use too.

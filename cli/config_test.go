@@ -261,13 +261,13 @@ func TestConnection(t *testing.T) {
 	}
 }
 
-// --metrics names the parts of the NAS to ask about, every one when it names none, and --skip takes some away from them, in any case and with
-// spaces about the commas.
+// --metrics names the groups of readings to put on the page, every one when it names none, and --skip takes some away from them, in any case and
+// with spaces about the commas. How the asking goes, poll, is one of them.
 func TestSkipped(t *testing.T) {
 	t.Parallel()
 
 	allBut := func(kept ...poll.Area) []poll.Area {
-		return slices.DeleteFunc(slices.Clone(poll.Areas), func(a poll.Area) bool { return slices.Contains(kept, a) })
+		return slices.DeleteFunc(slices.Clone(groups), func(a poll.Area) bool { return slices.Contains(kept, a) })
 	}
 
 	for _, c := range []struct {
@@ -278,6 +278,8 @@ func TestSkipped(t *testing.T) {
 		{"", "apps, VMS", []poll.Area{poll.AreaApps, poll.AreaVMs}},
 		{"pools,disks", "", allBut(poll.AreaPools, poll.AreaDisks)},
 		{"pools, Disks", "disks", allBut(poll.AreaPools)},
+		{"", "Poll", []poll.Area{pollReadings}},
+		{"pools,poll", "", allBut(poll.AreaPools, pollReadings)},
 		{",", " , ", nil},
 	} {
 		f := FlagData{Metrics: c.metrics, Skip: c.skip}

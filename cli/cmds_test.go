@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -174,7 +175,8 @@ func TestDatasetDepthSaysHowDeepDatasetsAreNamed(t *testing.T) {
 }
 
 // A part of the NAS left out is not asked about and has nothing on the page, while the rest is as it was. --skip takes from what --metrics names as
-// it does from every part. A word that names no part stops the program before it connects.
+// it does from every part. Left out, how the asking goes has no readings on the page, and whether the NAS is up still has one. A word that names no
+// group stops the program before it connects.
 //
 //nolint:paralleltest // viper is global state; Make mutates it
 func TestMetricsAndSkipSayWhatIsAsked(t *testing.T) {
@@ -186,9 +188,11 @@ func TestMetricsAndSkipSayWhatIsAsked(t *testing.T) {
 		args    []string
 		on, off []string
 	}{
-		{[]string{"--skip", "apps,vms"}, []string{`truenas_pool_healthy{pool="tank"} 1`, `truenas_disk_size_bytes{`}, []string{"truenas_apps", "truenas_vms"}},
-		{[]string{"--metrics", "pools"}, []string{`truenas_pool_healthy{pool="tank"} 1`, "truenas_system_info"}, []string{"truenas_apps", "truenas_disk_", "truenas_alerts"}},
+		{[]string{"--skip", "apps,vms"}, []string{`truenas_pool_healthy{pool="tank"} 1`, `truenas_disk_size_bytes{`, `truenas_poll_failures_total{poll="pools"} 0`}, []string{"truenas_apps", "truenas_vms", `poll="apps"`}},
+		{[]string{"--metrics", "pools"}, []string{`truenas_pool_healthy{pool="tank"} 1`, "truenas_system_info"}, []string{"truenas_apps", "truenas_disk_", "truenas_alerts", "truenas_poll_"}},
 		{[]string{"--metrics", "pools,disks", "--skip", "disks"}, []string{`truenas_pool_healthy{pool="tank"} 1`}, []string{"truenas_disk_", "truenas_apps"}},
+		{[]string{"--metrics", "pools,poll"}, []string{`truenas_pool_healthy{pool="tank"} 1`, `truenas_poll_failures_total{poll="pools"} 0`, `truenas_poll_failures_total{poll="system"} 0`}, []string{"truenas_apps", `poll="apps"`}},
+		{[]string{"--skip", "poll"}, []string{"truenas_up 1", `truenas_pool_healthy{pool="tank"} 1`, "truenas_apps"}, []string{"truenas_poll_"}},
 	} {
 		alone(t)
 
@@ -207,7 +211,7 @@ func TestMetricsAndSkipSayWhatIsAsked(t *testing.T) {
 				t.Errorf("%v: the page holds %s:\n%s", c.args, unwanted, out)
 			}
 		}
-		if c.args[0] == "--skip" && (nas.Asked(polltest.Apps) != 0 || nas.Asked(polltest.VMs) != 0) {
+		if slices.Contains(c.args, "apps,vms") && (nas.Asked(polltest.Apps) != 0 || nas.Asked(polltest.VMs) != 0) {
 			t.Errorf("%v: apps were asked about %d times and virtual machines %d", c.args, nas.Asked(polltest.Apps), nas.Asked(polltest.VMs))
 		}
 	}

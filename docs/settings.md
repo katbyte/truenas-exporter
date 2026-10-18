@@ -69,7 +69,7 @@ Each part of the NAS below is asked about on its own schedule. Three settings ch
 - **`--skip`** leaves parts out of those, like `apps,vms`.
 - **`--intervals`** says how often to ask about a part, like `snapshots=30m,apps=1m`. The rest keep the times below.
 
-A part left out is never asked about and has nothing on the page.
+A part left out is never asked about and has nothing on the page. `poll` is one more word the first two take: the four `truenas_poll_*` readings of how the asking goes. Nothing is asked of the NAS for it, so leaving it out changes only the page, and `truenas_up` stays.
 
 | Part | What it covers | Every |
 |---|---|---|
@@ -91,6 +91,7 @@ A part left out is never asked about and has nothing on the page.
 | `certificates` | when certificates expire | 5m |
 | `directory` | the directory service | 5m |
 | `key-expiry` | when the program's API key expires | 5m |
+| `poll` | how the asking of each part goes: `truenas_poll_*` | |
 
 - `system` is always asked about, since it is what says the NAS is answering. It can be given its own time, but not left out.
 - Counting snapshots has the NAS go through every one, so it is asked less often than most. A newer TrueNAS comes out seldom, so the NAS looks for one only every few hours.

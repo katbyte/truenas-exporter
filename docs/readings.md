@@ -13,7 +13,7 @@ Every reading starts `truenas_`. Statuses, states and levels are spelled as True
 | `truenas_poll_failures_total` | `poll` | failed polls of each part since start |
 | `truenas_exporter_build_info` | `version`, `commit`, `goversion` | always 1; the version running |
 
-`poll` is the part of the NAS, named as [the settings](settings.md#what-the-nas-is-asked-about-and-how-often) name it: `system`, `pools`, `snapshots` and the rest. A part has no `truenas_poll_*` readings until it has been asked once.
+`poll` is the part of the NAS, named as [the settings](settings.md#what-the-nas-is-asked-about-and-how-often) name it: `system`, `pools`, `snapshots` and the rest. A part has no `truenas_poll_*` readings until it has been asked once. `--skip poll` leaves all four off the page; `truenas_up` stays.
 
 ## The NAS
 

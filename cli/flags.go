@@ -14,6 +14,7 @@ import (
 	"github.com/katbyte/go-kt/prometheus/poller"
 	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-exporter/lib/readings"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -64,6 +65,13 @@ var envNames = map[string]string{
 	"clock-correction":       "TRUENAS_EXPORTER_CLOCK_CORRECTION",
 }
 
+// pollReadings is how the asking goes, the truenas_poll_* readings, as --metrics and --skip name it beside the parts of the NAS. Nothing is asked of
+// the NAS for it.
+const pollReadings poll.Area = "poll"
+
+// groups is every group of readings --metrics and --skip can name: the parts of the NAS, then how the asking goes.
+var groups = append(slices.Clone(poll.Areas), pollReadings)
+
 // persistent is the flag set configureFlags bound, for the one setting that has to be read before viper is: where the settings file is.
 var persistent *pflag.FlagSet
 
@@ -80,8 +88,8 @@ func configureFlags(root *cobra.Command) error {
 	pflags.String("listen", defaultListen, "serve the metrics page on this address")
 	pflags.String("labels", "", "labels to put on every reading, as name=value,name=value: hostname=nas say, when whatever scrapes the page adds none of its own")
 	pflags.Int("dataset-depth", readings.DefaultDatasetDepth, "how far below its pool a dataset may be and still be named on the page: 0 for each pool's own alone, 1 for those directly under it too")
-	pflags.String("metrics", "", "the parts of the NAS to ask about and no others, with commas between them: "+areaNames(poll.Areas)+"; every one unless set, and the NAS's own state always")
-	pflags.String("skip", "", "leave these parts of the NAS out of those --metrics names, named as for it: apps,vms say; nothing of them is on the page")
+	pflags.String("metrics", "", "the parts of the NAS to ask about and no others, with commas between them: "+areaNames(poll.Areas)+", and poll for the readings of how the asking goes; every one unless set, and the NAS's own state always")
+	pflags.String("skip", "", "leave these out of those --metrics names, named as for it: apps,vms say, or poll; nothing of them is on the page")
 	pflags.String("intervals", "", "how often to ask about some parts of the NAS, as part=duration with commas between them: snapshots=30m,apps=1m say; unset, "+defaultsSaid())
 	pflags.Duration("clock-correction", defaultClockCorrection, "added to the time the NAS gives before it is held to this machine's clock: a TrueNAS gives it to the whole second, so half a second centres the reading; 0 for a NAS that gives it finer")
 	pflags.String("config", "", "read settings from this file and no other, in place of ./.truenas-exporter or ~/.truenas-exporter (or export TRUENAS_EXPORTER_CONFIG)")
@@ -220,8 +228,8 @@ func (f *FlagData) connection() (connection, error) {
 	return connection{server: f.Server, username: f.Username, key: f.APIKey, certFile: f.CertificateFile, caFile: f.CAFile, skipCheck: f.SkipCertificateCheck, sendUnchecked: f.SendKeyUnchecked, clockCorrection: f.ClockCorrection}, nil
 }
 
-// skipped is the parts of the NAS the settings leave unasked: those --metrics does not name, when it names any, and those --skip names. A word that
-// names no part is a mistake said now, since a page quietly missing what was asked for reads as a NAS with none of it.
+// skipped is the groups of readings the settings leave off the page: those --metrics does not name, when it names any, and those --skip names. A
+// word that names no group is a mistake said now, since a page quietly missing what was asked for reads as a NAS with none of it.
 func (f *FlagData) skipped() ([]poll.Area, error) {
 	named, err := areas("metrics", f.Metrics)
 	if err != nil {
@@ -234,11 +242,11 @@ func (f *FlagData) skipped() ([]poll.Area, error) {
 	}
 
 	if len(named) == 0 {
-		named = poll.Areas
+		named = groups
 	}
 
 	var out []poll.Area
-	for _, area := range poll.Areas {
+	for _, area := range groups {
 		if !slices.Contains(named, area) || slices.Contains(skip, area) {
 			out = append(out, area)
 		}
@@ -247,17 +255,17 @@ func (f *FlagData) skipped() ([]poll.Area, error) {
 	return out, nil
 }
 
-// areas is the parts of the NAS one setting names.
+// areas is the groups of readings one setting names.
 func areas(flag, list string) ([]poll.Area, error) {
 	var out []poll.Area
 	for word := range strings.SplitSeq(list, ",") {
 		area := poll.Area(strings.ToLower(strings.TrimSpace(word)))
 		switch {
 		case area == "":
-		case slices.Contains(poll.Areas, area):
+		case slices.Contains(groups, area):
 			out = append(out, area)
 		default:
-			return nil, fmt.Errorf("--%s (%s) takes %s, with commas between them, and not %q", flag, envNames[flag], areaNames(poll.Areas), strings.TrimSpace(word))
+			return nil, fmt.Errorf("--%s (%s) takes %s, with commas between them, and not %q", flag, envNames[flag], areaNames(groups), strings.TrimSpace(word))
 		}
 	}
 
@@ -340,6 +348,9 @@ func (f *FlagData) poller(connect connector) (*poll.Poller, func(), error) {
 		return nil, nil, err
 	}
 
+	// how the asking goes is not asked of the NAS, so only the parts of it are left unasked
+	unasked := slices.DeleteFunc(slices.Clone(skip), func(a poll.Area) bool { return a == pollReadings })
+
 	every, err := f.intervals()
 	if err != nil {
 		return nil, nil, err
@@ -350,7 +361,7 @@ func (f *FlagData) poller(connect connector) (*poll.Poller, func(), error) {
 		return nil, nil, err
 	}
 
-	p, err := poll.New(nas, every, skip...)
+	p, err := poll.New(nas, every, unasked...)
 	if err != nil {
 		closer()
 
@@ -362,8 +373,11 @@ func (f *FlagData) poller(connect connector) (*poll.Poller, func(), error) {
 	if f.Intervals != "" {
 		clog.Log.Infof("asking about %s as often as --intervals says", f.Intervals)
 	}
-	if len(skip) > 0 {
-		clog.Log.Infof("not asking about %s", areaNames(skip))
+	if len(unasked) > 0 {
+		clog.Log.Infof("not asking about %s", areaNames(unasked))
+	}
+	if len(unasked) < len(skip) {
+		clog.Log.Info("leaving the readings of how the asking goes off the page")
 	}
 
 	switch {
@@ -376,15 +390,26 @@ func (f *FlagData) poller(connect connector) (*poll.Poller, func(), error) {
 	return p, closer, nil
 }
 
-// page is the metrics page of this poller's readings, with the labels the settings ask for on every one. A label that cannot be used is said here,
-// before the NAS is asked anything: one written wrongly, or one named as a reading's own label is, pool say.
+// page is the metrics page of this poller's readings, and of how its asking goes unless the settings leave that off, with the labels the settings
+// ask for on every one. A label that cannot be used is said here, before the NAS is asked anything: one written wrongly, or one named as a reading's
+// own label is, pool say.
 func (f *FlagData) page(p *poll.Poller) (*metrics.Page, error) {
 	labels, err := metrics.ParseLabels(f.Labels)
 	if err != nil {
 		return nil, fmt.Errorf("--labels (%s): %w", envNames["labels"], err)
 	}
 
-	page, err := metrics.New(metrics.Options{Name: toolName, Labels: labels}, readings.New(p, readings.Options{DatasetDepth: f.DatasetDepth}), p)
+	skip, err := f.skipped()
+	if err != nil {
+		return nil, err
+	}
+
+	collectors := []prometheus.Collector{readings.New(p, readings.Options{DatasetDepth: f.DatasetDepth})}
+	if !slices.Contains(skip, pollReadings) {
+		collectors = append(collectors, p)
+	}
+
+	page, err := metrics.New(metrics.Options{Name: toolName, Labels: labels}, collectors...)
 	if err != nil {
 		return nil, fmt.Errorf("--labels (%s): %w", envNames["labels"], err)
 	}

@@ -23,7 +23,7 @@ otherwise. A NAS that stops answering is reported as truenas_up 0, and what it l
 each part is served for three of that part's intervals and then left off.
 
 --metrics names the parts of the NAS to ask about, every one unless set, and --skip leaves
-some of those out.
+some of those out. Both also take poll, the readings of how the asking goes.
 
 The NAS is reached over TLS and no other way: it revokes a key sent in the clear. A NAS as it
 comes shows a certificate it made itself, made out to localhost, so say which one is its:

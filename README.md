@@ -89,7 +89,7 @@ Each setting is a flag, an environment variable or a line in a settings file. [d
 | `TRUENAS_EXPORTER_CLOCK_CORRECTION` | `--clock-correction` | added to the NAS's clock, default `500ms` |
 | `TRUENAS_EXPORTER_DATASET_DEPTH` | `--dataset-depth` | how deep datasets are named, default `1` |
 | `TRUENAS_EXPORTER_METRICS` | `--metrics` | the parts to ask about, like `pools,disks`; default all |
-| `TRUENAS_EXPORTER_SKIP` | `--skip` | parts to leave out, like `apps,vms` |
+| `TRUENAS_EXPORTER_SKIP` | `--skip` | parts to leave out, like `apps,vms`; `poll` leaves out the `truenas_poll_*` readings |
 | `TRUENAS_EXPORTER_LOG` | | log level: `WARN` (default), `INFO` or `DEBUG` |
 | `TRUENAS_EXPORTER_CONFIG` | `--config` | the settings file to read |
 
