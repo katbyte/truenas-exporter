@@ -100,7 +100,7 @@ A part left out is never asked about and has nothing on the page. `poll` is one 
 
 ## Logging
 
-`TRUENAS_EXPORTER_LOG` sets the log level. `WARN` is the default. `INFO` adds what is being reported on and when the NAS comes back. `DEBUG` adds what the connection is doing.
+`TRUENAS_EXPORTER_LOG` sets the log level. `WARN` is the default. `INFO` adds which version is running, what is being reported on and when the NAS comes back. `DEBUG` adds what the connection is doing.
 
 ## Docker
 

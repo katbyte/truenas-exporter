@@ -4,11 +4,28 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/katbyte/go-kt/clog"
 	"github.com/katbyte/go-kt/prometheus/exporter"
 	"github.com/katbyte/go-kt/version"
 	"github.com/spf13/cobra"
 )
+
+// versionSaid is the version the program gives of itself: a release's tag and the commit it was built from, or for a local build, how far past
+// the tag it is and at which commit, which names the commit already.
+func versionSaid() string {
+	if version.GitCommit == "" || strings.Contains(version.Version, version.GitCommit) {
+		return version.Version
+	}
+
+	return version.Version + " (" + version.GitCommit + ")"
+}
+
+// started logs which version is running, first thing, so a log says what wrote it.
+func started() {
+	clog.Log.Infof("starting %s %s", toolName, versionSaid())
+}
 
 func Make() (*cobra.Command, error) {
 	return makeWith(connect)
@@ -37,7 +54,7 @@ Complete documentation is available at https://github.com/katbyte/truenas-export
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		Run: func(cmd *cobra.Command, _ []string) {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "truenas-exporter "+version.Version)
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "truenas-exporter "+versionSaid())
 		},
 	})
 
@@ -51,6 +68,7 @@ reported.`,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cmd.SilenceUsage = true
+			started()
 
 			f := GetFlags()
 			p, closer, err := f.poller(connect)

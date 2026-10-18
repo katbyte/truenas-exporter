@@ -48,6 +48,7 @@ TRUENAS_EXPORTER_INTERVALS and TRUENAS_EXPORTER_CLOCK_CORRECTION.`,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cmd.SilenceUsage = true
+			started()
 
 			f := GetFlags()
 			p, closer, err := f.poller(connect)

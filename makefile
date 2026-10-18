@@ -1,7 +1,8 @@
 # recipes use bash for pipefail support (ubuntu's default sh is dash)
 SHELL := /bin/bash
 
-GIT_COMMIT=$(shell git describe --always --long --dirty 2>/dev/null)
+# the short commit, as a release stamps it; whether the tree was changed is in the version
+GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null)
 # falls back to dev when there is no tag yet (the || must wrap git, not sed, or it never fires)
 GIT_VERSION=$(shell (git describe --tags --dirty 2>/dev/null || echo dev) | sed 's/-\([0-9]*\)-g/+\1@g/')
 TEST_TIMEOUT?=5m

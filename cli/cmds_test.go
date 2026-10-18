@@ -17,6 +17,7 @@ import (
 
 	"github.com/katbyte/go-kt/clog"
 	"github.com/katbyte/go-kt/prometheus/metrics"
+	"github.com/katbyte/go-kt/version"
 	"github.com/katbyte/truenas-exporter/lib/poll"
 	"github.com/katbyte/truenas-exporter/lib/poll/polltest"
 	"github.com/katbyte/truenas-mcp/sdk/truenastest"
@@ -98,13 +99,51 @@ func TestMakeBuildsTheCommands(t *testing.T) {
 	}
 }
 
-//nolint:paralleltest // viper is global state; Make mutates it
+// version says a release's tag and the commit it was built from. A local build's version says how far past the tag it is and at which commit, so
+// the commit is not said twice.
+//
+//nolint:paralleltest // viper is global state; Make mutates it, and the version is set here
 func TestVersionCommand(t *testing.T) {
-	alone(t)
+	stamped, commit := version.Version, version.GitCommit
+	t.Cleanup(func() { version.Version, version.GitCommit = stamped, commit })
 
-	out, err := run(t, stood(&polltest.NAS{}, nil), "version")
-	if err != nil || !strings.HasPrefix(out, "truenas-exporter ") {
-		t.Errorf("version printed %q (%v), want the name and a version", out, err)
+	for _, c := range []struct{ version, commit, want string }{
+		{"v0.3.1", "e9ab714", "truenas-exporter v0.3.1 (e9ab714)\n"},
+		{"v0.3.1+2@gabc1234-dirty", "abc1234", "truenas-exporter v0.3.1+2@gabc1234-dirty\n"},
+		{"dev", "", "truenas-exporter dev\n"},
+	} {
+		alone(t)
+		version.Version, version.GitCommit = c.version, c.commit
+
+		out, err := run(t, stood(&polltest.NAS{}, nil), "version")
+		if err != nil || out != c.want {
+			t.Errorf("version %q at %q printed %q (%v), want %q", c.version, c.commit, out, err, c.want)
+		}
+	}
+}
+
+// print and serve say which version is running before anything else, so a log says what wrote it, even when the settings then turn out wrong.
+//
+//nolint:paralleltest // viper is global state; Make mutates it, and the log is captured here
+func TestStartingSaysTheVersion(t *testing.T) {
+	var log bytes.Buffer
+	level, out := clog.Log.GetLevel(), clog.Log.Out
+	clog.Log.SetOutput(&log)
+	clog.SetLevel("info")
+	t.Cleanup(func() {
+		clog.Log.SetOutput(out)
+		clog.Log.SetLevel(level)
+	})
+
+	for _, args := range [][]string{to("print"), {"serve"}} {
+		alone(t)
+		log.Reset()
+
+		// serve is given no NAS, so it stops at once, after saying its version
+		_, _ = run(t, stood(&polltest.NAS{}, nil), args...)
+		if first, _, _ := strings.Cut(log.String(), "\n"); !strings.Contains(first, "starting truenas-exporter "+versionSaid()) {
+			t.Errorf("%s: the log starts %q, want the version", args[0], first)
+		}
 	}
 }
 

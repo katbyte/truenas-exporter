@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 (2026-10-18)
+
+- **The log says which version is running** as `print` and `serve` start, at `INFO`: `starting truenas-exporter v0.3.2`, then the commit it was built from in brackets. `truenas-exporter version` now names the commit too.
+
 ## 0.3.1 (2026-10-18)
 
 - **The readings of how the asking goes can be left off**: `--skip poll` drops the four `truenas_poll_*` readings, and `--metrics` keeps them only when it names `poll`. `truenas_up` stays either way.
