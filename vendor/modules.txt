@@ -19,13 +19,13 @@ github.com/fsnotify/fsnotify/internal
 ## explicit; go 1.18
 github.com/go-viper/mapstructure/v2
 github.com/go-viper/mapstructure/v2/internal/errors
-# github.com/gookit/color v1.6.1
+# github.com/gookit/color v1.6.3
 ## explicit; go 1.18
 github.com/gookit/color
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/katbyte/go-kt v0.9.0
+# github.com/katbyte/go-kt v0.9.1
 ## explicit; go 1.27.0
 github.com/katbyte/go-kt/clog
 github.com/katbyte/go-kt/httpc
@@ -38,10 +38,10 @@ github.com/katbyte/go-kt/prometheus/metrics
 github.com/katbyte/go-kt/prometheus/metricstest
 github.com/katbyte/go-kt/prometheus/poller
 github.com/katbyte/go-kt/version
-# github.com/katbyte/pandorest v0.11.0
+# github.com/katbyte/pandorest v0.13.1
 ## explicit; go 1.27.0
 github.com/katbyte/pandorest/client
-# github.com/katbyte/truenas-mcp v0.1.0
+# github.com/katbyte/truenas-mcp v0.2.2
 ## explicit; go 1.27.0
 github.com/katbyte/truenas-mcp/acceptance/layout
 github.com/katbyte/truenas-mcp/sdk/truenas
